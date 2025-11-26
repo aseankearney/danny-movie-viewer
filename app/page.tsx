@@ -162,13 +162,25 @@ export default function Home() {
         try {
           // Real-time OMDb search - simplified and direct
           const response = await fetch(`/api/game/autocomplete?q=${encodeURIComponent(value)}`)
+          
+          if (!response.ok) {
+            console.error('Autocomplete API error:', response.status, response.statusText)
+            setSuggestions([])
+            setShowSuggestions(false)
+            setLoadingAutocomplete(false)
+            return
+          }
+          
           const data = await response.json()
+          console.log('Autocomplete response:', data)
           
           let suggestions: string[] = []
           
           if (data.suggestions && Array.isArray(data.suggestions)) {
             suggestions = data.suggestions
           }
+          
+          console.log(`Got ${suggestions.length} suggestions for "${value}"`)
           
           // Ensure the correct movie is included if it matches
           const valueLower = value.toLowerCase()
@@ -180,6 +192,7 @@ export default function Home() {
           
           // Remove duplicates
           const uniqueSuggestions = Array.from(new Set(suggestions))
+          console.log(`Setting ${uniqueSuggestions.length} unique suggestions`)
           setSuggestions(uniqueSuggestions)
           setShowSuggestions(uniqueSuggestions.length > 0)
         } catch (error) {

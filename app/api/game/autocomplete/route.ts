@@ -40,13 +40,29 @@ export async function GET(request: Request) {
 
         const data = await response.json()
         
-        if (data.Response === 'False' || !data.Search || !Array.isArray(data.Search)) {
-          // No more results
+        // Debug logging
+        console.log(`OMDb search for "${query}" page ${page}:`, {
+          response: data.Response,
+          hasSearch: !!data.Search,
+          searchLength: data.Search?.length,
+          error: data.Error
+        })
+        
+        // Check if response is successful
+        if (data.Response === 'False' || data.Response === false) {
+          // Check if it's an error or just no more results
+          if (data.Error && page === 1) {
+            console.error(`OMDb API error: ${data.Error}`)
+          }
+          break
+        }
+        
+        if (!data.Search || !Array.isArray(data.Search)) {
           break
         }
         
         for (const movie of data.Search) {
-          const title = movie.Title
+          const title = movie?.Title
           if (!title) continue
           
           const titleLower = title.toLowerCase()
@@ -102,6 +118,7 @@ export async function GET(request: Request) {
       return a.length - b.length
     })
 
+    console.log(`Autocomplete for "${query}": returning ${sorted.length} suggestions`)
     return NextResponse.json({ suggestions: sorted.slice(0, 50) })
   } catch (error) {
     console.error('Error in autocomplete:', error)
