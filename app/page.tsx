@@ -43,6 +43,9 @@ export default function Home() {
   const [playerName, setPlayerName] = useState('')
   const [submittingLeaderboard, setSubmittingLeaderboard] = useState(false)
   const [leaderboardSubmitted, setLeaderboardSubmitted] = useState(false)
+  const [showLeaderboard, setShowLeaderboard] = useState(false)
+  const [leaderboard, setLeaderboard] = useState<Array<{ playerName: string; hintsUsed: number; submittedAt: string }>>([])
+  const [loadingLeaderboard, setLoadingLeaderboard] = useState(false)
   const [allMovieTitles, setAllMovieTitles] = useState<string[]>([])
   const [loadingTitles, setLoadingTitles] = useState(false)
   const [loadingAutocomplete, setLoadingAutocomplete] = useState(false)
@@ -366,6 +369,8 @@ export default function Home() {
 
       if (response.ok && data.success) {
         setLeaderboardSubmitted(true)
+        // Automatically load leaderboard after submission
+        loadLeaderboard()
       } else {
         console.error('Failed to submit to leaderboard:', data.error)
         alert('Failed to submit to leaderboard. Please try again.')
@@ -376,6 +381,35 @@ export default function Home() {
     } finally {
       setSubmittingLeaderboard(false)
     }
+  }
+
+  const loadLeaderboard = async () => {
+    if (!movie) return
+
+    setLoadingLeaderboard(true)
+    try {
+      const response = await fetch(`/api/leaderboard/get?date=${movie.puzzleDate}`)
+      const data = await response.json()
+
+      if (response.ok && data.leaderboard) {
+        // Sort by hints used ascending (0 to max)
+        const sorted = [...data.leaderboard].sort((a, b) => a.hintsUsed - b.hintsUsed)
+        setLeaderboard(sorted)
+      } else {
+        console.error('Failed to load leaderboard:', data.error)
+      }
+    } catch (error) {
+      console.error('Error loading leaderboard:', error)
+    } finally {
+      setLoadingLeaderboard(false)
+    }
+  }
+
+  const handleShowLeaderboard = () => {
+    if (leaderboard.length === 0) {
+      loadLeaderboard()
+    }
+    setShowLeaderboard(true)
   }
 
   if (loading) {
