@@ -63,15 +63,20 @@ export async function GET() {
       
       if (movieDetails && movieDetails.Title) {
         // Success! We found a valid movie
+        const updatedAt = movie.updated_at instanceof Date 
+          ? movie.updated_at.toISOString() 
+          : new Date(movie.updated_at).toISOString()
+        
         movieStatus = {
           movieId: movie.movie_id,
           status: movie.status as 'Seen-Liked' | 'Seen-Hated',
-          updatedAt: movie.updated_at.toISOString(),
+          updatedAt: updatedAt,
         }
         console.log(`Successfully found movie: ${movieDetails.Title} (${movieId})`)
         break
       } else {
         console.log(`Failed to fetch movie details for ${movieId}, trying next movie...`)
+        movieDetails = null // Reset for next attempt
       }
     }
 
