@@ -45,6 +45,7 @@ export default function Home() {
   const [leaderboardSubmitted, setLeaderboardSubmitted] = useState(false)
   const [allMovieTitles, setAllMovieTitles] = useState<string[]>([])
   const [loadingTitles, setLoadingTitles] = useState(false)
+  const [loadingAutocomplete, setLoadingAutocomplete] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const suggestionsRef = useRef<HTMLDivElement>(null)
 
