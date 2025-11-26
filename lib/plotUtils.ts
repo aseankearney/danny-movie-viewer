@@ -150,13 +150,13 @@ export function replaceProperNounsWithRedacted(plot: string): Array<{ text: stri
  */
 export function extractAcademyAwards(awards: string | null): string | null {
   if (!awards) {
-    // If no awards data, explicitly state 0 Oscars
-    return 'This movie has been nominated for or won 0 Oscars.'
+    // If no awards data, explicitly state no nomination
+    return 'This movie wasn\'t nominated for an Academy Award'
   }
 
   // Check for explicit "N/A" or empty awards
   if (awards.trim().toLowerCase() === 'n/a' || awards.trim() === '') {
-    return 'This movie has been nominated for or won 0 Oscars.'
+    return 'This movie wasn\'t nominated for an Academy Award'
   }
 
   // Look for Oscar/Academy Award mentions
@@ -169,7 +169,7 @@ export function extractAcademyAwards(awards: string | null): string | null {
   if (!matches || matches.length === 0) {
     // If there's no Oscar mention, it means 0 Oscars
     if (!hasOscarMention) {
-      return 'This movie has been nominated for or won 0 Oscars.'
+      return 'This movie wasn\'t nominated for an Academy Award'
     }
     // If there's a mention but no numbers, return the raw awards text
     return awards
@@ -195,7 +195,7 @@ export function extractAcademyAwards(awards: string | null): string | null {
   if (nominationMatches && nominationMatches.length > 0) {
     const nominationCount = nominationMatches[0].match(/\d+/)?.[0]
     if (nominationCount && parseInt(nominationCount) === 0) {
-      return 'This movie has been nominated for or won 0 Oscars.'
+      return 'This movie wasn\'t nominated for an Academy Award'
     }
   }
 
@@ -204,12 +204,12 @@ export function extractAcademyAwards(awards: string | null): string | null {
   if (countMatch) {
     const count = parseInt(countMatch[1])
     if (count === 0) {
-      return 'This movie has been nominated for or won 0 Oscars.'
+      return 'This movie wasn\'t nominated for an Academy Award'
     }
     return `This movie won ${count} ${count === 1 ? 'Oscar' : 'Oscars'}`
   }
 
   // If we have awards data but no Oscar info, it means 0 Oscars
-  return 'This movie has been nominated for or won 0 Oscars.'
+  return 'This movie wasn\'t nominated for an Academy Award'
 }
 
