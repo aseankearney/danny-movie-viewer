@@ -2,16 +2,14 @@ import { NextResponse } from 'next/server'
 import { getAllMovieIds } from '@/lib/db'
 import { getMovieByIMDbId } from '@/lib/omdb'
 
-// Cache for movie titles to avoid repeated API calls
+// Cache for movie titles
 const movieTitleCache = new Map<string, string>()
 
+// This endpoint is a fallback for when client-side autocomplete hasn't loaded titles yet
 export async function GET(request: Request) {
   try {
     if (!process.env.DATABASE_URL) {
-      return NextResponse.json(
-        { error: 'DATABASE_URL is not set' },
-        { status: 500 }
-      )
+      return NextResponse.json({ suggestions: [] })
     }
 
     const { searchParams } = new URL(request.url)
@@ -21,54 +19,43 @@ export async function GET(request: Request) {
       return NextResponse.json({ suggestions: [] })
     }
 
-    // Get all movie IDs from database
+    // Get movie IDs and check cache
     const movieIds = await getAllMovieIds()
+    const matchingTitles: string[] = []
     
-    const suggestions: string[] = []
-    const maxSuggestions = 10
-    const moviesToCheck = movieIds.slice(0, 50) // Limit for performance
-    
-    // Check cache first, then fetch missing ones
-    const uncachedIds: string[] = []
-    const cachedTitles: string[] = []
-    
-    for (const movieId of moviesToCheck) {
+    // Check cache first
+    for (const movieId of movieIds.slice(0, 100)) {
       if (movieTitleCache.has(movieId)) {
         const title = movieTitleCache.get(movieId)!
-        if (title.toLowerCase().includes(query)) {
-          cachedTitles.push(title)
+        if (title.toLowerCase().includes(query) && !matchingTitles.includes(title)) {
+          matchingTitles.push(title)
+          if (matchingTitles.length >= 20) break
         }
-      } else if (movieId.startsWith('tt')) {
-        uncachedIds.push(movieId)
       }
     }
-    
-    // Fetch uncached movies (limit to 10 at a time for performance)
-    for (const movieId of uncachedIds.slice(0, 10)) {
-      if (suggestions.length + cachedTitles.length >= maxSuggestions) break
+
+    // If we need more, fetch some uncached ones
+    if (matchingTitles.length < 20) {
+      const uncachedIds = movieIds.filter(id => !movieTitleCache.has(id) && id.startsWith('tt')).slice(0, 20)
       
-      try {
-        const movie = await getMovieByIMDbId(movieId)
-        if (movie && movie.Title) {
-          movieTitleCache.set(movieId, movie.Title)
-          if (movie.Title.toLowerCase().includes(query)) {
-            suggestions.push(movie.Title)
+      for (const movieId of uncachedIds) {
+        if (matchingTitles.length >= 20) break
+        
+        try {
+          const movie = await getMovieByIMDbId(movieId)
+          if (movie && movie.Title) {
+            movieTitleCache.set(movieId, movie.Title)
+            if (movie.Title.toLowerCase().includes(query) && !matchingTitles.includes(movie.Title)) {
+              matchingTitles.push(movie.Title)
+            }
           }
+        } catch (error) {
+          // Skip on error
         }
-      } catch (error) {
-        // Skip if error
       }
     }
 
-    // Combine cached and new suggestions
-    const allSuggestions = [...cachedTitles, ...suggestions]
-    
-    // Remove duplicates and sort
-    const uniqueSuggestions = Array.from(new Set(allSuggestions))
-      .sort()
-      .slice(0, maxSuggestions)
-
-    return NextResponse.json({ suggestions: uniqueSuggestions })
+    return NextResponse.json({ suggestions: matchingTitles.slice(0, 20) })
   } catch (error) {
     console.error('Error in autocomplete:', error)
     return NextResponse.json({ suggestions: [] })

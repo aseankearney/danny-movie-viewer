@@ -22,10 +22,28 @@ export default function Home() {
   const [submitted, setSubmitted] = useState(false)
   const [isCorrect, setIsCorrect] = useState(false)
   const [loadingAutocomplete, setLoadingAutocomplete] = useState(false)
+  const [allMovieTitles, setAllMovieTitles] = useState<string[]>([])
+  const [loadingTitles, setLoadingTitles] = useState(true)
   const inputRef = useRef<HTMLInputElement>(null)
   const suggestionsRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    // Pre-load all movie titles for autocomplete
+    const loadTitles = async () => {
+      try {
+        const response = await fetch('/api/game/titles')
+        const data = await response.json()
+        if (data.titles && Array.isArray(data.titles)) {
+          setAllMovieTitles(data.titles)
+        }
+      } catch (error) {
+        console.error('Error loading movie titles:', error)
+      } finally {
+        setLoadingTitles(false)
+      }
+    }
+    
+    loadTitles()
     loadNewMovie()
   }, [])
 
@@ -83,26 +101,91 @@ export default function Home() {
     }
   }
 
-  const handleInputChange = async (value: string) => {
+  const handleInputChange = (value: string) => {
     setUserAnswer(value)
     
-    if (value.length >= 2) {
-      setLoadingAutocomplete(true)
-      setShowSuggestions(true)
+    if (value.length >= 1 && allMovieTitles.length > 0) {
+      const query = value.toLowerCase().trim()
       
-      try {
-        const response = await fetch(`/api/game/autocomplete?q=${encodeURIComponent(value)}`)
-        const data = await response.json()
-        setSuggestions(data.suggestions || [])
-      } catch (error) {
-        console.error('Error fetching autocomplete:', error)
-        setSuggestions([])
-      } finally {
-        setLoadingAutocomplete(false)
+      // Filter titles that match the query
+      const matchingTitles = allMovieTitles.filter((title) =>
+        title.toLowerCase().includes(query)
+      )
+      
+      // Ensure the correct movie is included if it matches
+      let finalSuggestions = matchingTitles
+      if (movie?.title && !matchingTitles.includes(movie.title) && 
+          movie.title.toLowerCase().includes(query)) {
+        finalSuggestions = [movie.title, ...matchingTitles]
       }
-    } else {
+      
+      // Create a diverse set of suggestions:
+      // - Include the correct movie if it matches
+      // - Include ~10 movies per letter of the alphabet
+      // - Prioritize exact matches and close matches
+      const organizedSuggestions: string[] = []
+      const correctTitle = movie?.title
+      
+      // Add correct title first if it matches
+      if (correctTitle && correctTitle.toLowerCase().includes(query) && 
+          !organizedSuggestions.includes(correctTitle)) {
+        organizedSuggestions.push(correctTitle)
+      }
+      
+      // Group by first letter and take up to 10 per letter
+      const byLetter: Record<string, string[]> = {}
+      for (const title of finalSuggestions) {
+        if (title === correctTitle && organizedSuggestions.includes(title)) continue
+        
+        const firstLetter = title.charAt(0).toUpperCase()
+        if (!byLetter[firstLetter]) {
+          byLetter[firstLetter] = []
+        }
+        if (byLetter[firstLetter].length < 10) {
+          byLetter[firstLetter].push(title)
+        }
+      }
+      
+      // Add titles from each letter (up to 10 per letter)
+      for (const letter of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ') {
+        if (byLetter[letter]) {
+          organizedSuggestions.push(...byLetter[letter].slice(0, 10))
+        }
+      }
+      
+      // Limit total suggestions to 50 for performance
+      const limitedSuggestions = organizedSuggestions.slice(0, 50)
+      
+      setSuggestions(limitedSuggestions)
+      setShowSuggestions(limitedSuggestions.length > 0)
+    } else if (value.length === 0) {
       setSuggestions([])
       setShowSuggestions(false)
+    } else if (allMovieTitles.length === 0 && !loadingTitles) {
+      // Fallback to API if titles haven't loaded yet
+      handleInputChangeAPI(value)
+    }
+  }
+  
+  const handleInputChangeAPI = async (value: string) => {
+    if (value.length < 2) {
+      setSuggestions([])
+      setShowSuggestions(false)
+      return
+    }
+    
+    setLoadingAutocomplete(true)
+    setShowSuggestions(true)
+    
+    try {
+      const response = await fetch(`/api/game/autocomplete?q=${encodeURIComponent(value)}`)
+      const data = await response.json()
+      setSuggestions(data.suggestions || [])
+    } catch (error) {
+      console.error('Error fetching autocomplete:', error)
+      setSuggestions([])
+    } finally {
+      setLoadingAutocomplete(false)
     }
   }
 
