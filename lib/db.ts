@@ -133,7 +133,9 @@ export async function getDailyMovie(date: string): Promise<MovieStatus | null> {
       hash = hash & hash // Convert to 32bit integer
     }
     
-    const index = Math.abs(hash) % allMovies.length
+    // Add a small offset to shift the selection (change this number to get a different movie)
+    const offset = 1
+    const index = (Math.abs(hash) + offset) % allMovies.length
     const row = allMovies[index]
     
     console.log(`Selected movie at index ${index} (hash: ${hash}): ${row.movie_id}`)
