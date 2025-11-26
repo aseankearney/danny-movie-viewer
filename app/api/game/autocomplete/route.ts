@@ -22,22 +22,29 @@ export async function GET(request: Request) {
     const queryLower = query.toLowerCase().trim()
     const queryIsNumber = /^\d/.test(query)
 
-    // Search OMDb directly with the user's query - only first page for speed
-    try {
-      const response = await fetch(
-        `${OMDB_BASE_URL}/?apikey=${OMDB_API_KEY}&s=${encodeURIComponent(query)}&type=movie&page=1`,
-        {
-          cache: 'no-store',
-        }
-      )
-
-      if (!response.ok) {
-        throw new Error(`OMDb API error: ${response.statusText}`)
-      }
-
-      const data = await response.json()
+    // Search OMDb directly with the user's query - search multiple pages
+    for (let page = 1; page <= 3; page++) {
+      if (suggestions.length >= 50) break
       
-      if (data.Response === 'True' && data.Search && Array.isArray(data.Search)) {
+      try {
+        const response = await fetch(
+          `${OMDB_BASE_URL}/?apikey=${OMDB_API_KEY}&s=${encodeURIComponent(query)}&type=movie&page=${page}`,
+          {
+            cache: 'no-store',
+          }
+        )
+
+        if (!response.ok) {
+          throw new Error(`OMDb API error: ${response.statusText}`)
+        }
+
+        const data = await response.json()
+        
+        if (data.Response === 'False' || !data.Search || !Array.isArray(data.Search)) {
+          // No more results
+          break
+        }
+        
         for (const movie of data.Search) {
           const title = movie.Title
           if (!title) continue
@@ -55,18 +62,24 @@ export async function GET(request: Request) {
           const startsWithNumber = /^\d/.test(title)
           if (startsWithNumber && !queryIsNumber) continue
           
-          // For short queries (1-2 chars), only show titles that start with the query
-          if (query.length <= 2 && !titleLower.startsWith(queryLower)) continue
-          
           suggestions.push(title)
           seenTitles.add(titleKey)
           
-          if (suggestions.length >= 30) break
+          if (suggestions.length >= 50) break
         }
+        
+        // If we got fewer results than expected, we've probably reached the end
+        if (data.Search.length < 10) break
+        
+        // Small delay between pages to avoid rate limiting
+        if (page < 3 && suggestions.length < 50) {
+          await new Promise(resolve => setTimeout(resolve, 200))
+        }
+      } catch (error) {
+        console.error(`Error searching OMDb page ${page} for "${query}":`, error)
+        // Continue to next page or break if first page fails
+        if (page === 1) break
       }
-    } catch (error) {
-      console.error(`Error searching OMDb for "${query}":`, error)
-      return NextResponse.json({ suggestions: [] })
     }
 
     // Sort by relevance
@@ -89,7 +102,7 @@ export async function GET(request: Request) {
       return a.length - b.length
     })
 
-    return NextResponse.json({ suggestions: sorted.slice(0, 30) })
+    return NextResponse.json({ suggestions: sorted.slice(0, 50) })
   } catch (error) {
     console.error('Error in autocomplete:', error)
     return NextResponse.json({ suggestions: [] })
