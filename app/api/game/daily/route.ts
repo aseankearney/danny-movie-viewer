@@ -12,8 +12,12 @@ export async function GET() {
       )
     }
 
-    // Get today's date in YYYY-MM-DD format
-    const today = new Date().toISOString().split('T')[0]
+    // Get today's date in YYYY-MM-DD format (UTC)
+    // This ensures consistent puzzle selection across all timezones
+    const now = new Date()
+    const today = now.toISOString().split('T')[0]
+    
+    console.log(`Fetching daily puzzle for date: ${today}`)
 
     const movieStatus = await getDailyMovie(today)
     

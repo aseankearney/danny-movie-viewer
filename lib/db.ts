@@ -107,6 +107,8 @@ export async function getRandomMovieFromLikedOrHated(): Promise<MovieStatus | nu
 // Get daily movie based on date (same for all players on same day)
 export async function getDailyMovie(date: string): Promise<MovieStatus | null> {
   try {
+    console.log(`Getting daily movie for date: ${date}`)
+    
     // Use date as seed for consistent random selection
     // Get all movies with Seen-Liked or Seen-Hated status
     const allMovies = await sql`
@@ -115,6 +117,8 @@ export async function getDailyMovie(date: string): Promise<MovieStatus | null> {
       WHERE status IN ('Seen-Liked', 'Seen-Hated')
       ORDER BY movie_id
     `
+    
+    console.log(`Found ${allMovies.length} movies with Seen-Liked or Seen-Hated status`)
     
     if (allMovies.length === 0) {
       return null
@@ -131,6 +135,8 @@ export async function getDailyMovie(date: string): Promise<MovieStatus | null> {
     
     const index = Math.abs(hash) % allMovies.length
     const row = allMovies[index]
+    
+    console.log(`Selected movie at index ${index} (hash: ${hash}): ${row.movie_id}`)
     
     return {
       movieId: row.movie_id,
