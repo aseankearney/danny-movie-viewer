@@ -406,7 +406,7 @@ export default function Home() {
                         key={hintLevel}
                         className="text-center"
                       >
-                        <div className="text-2xl sm:text-3xl font-semibold text-gray-900 dark:text-white">
+                        <div className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">
                           {movie.plotWithRedacted.map((segment, idx) => (
                             <span
                               key={idx}
@@ -425,7 +425,7 @@ export default function Home() {
                       key={hintLevel}
                       className="text-center"
                     >
-                      <div className="text-2xl sm:text-3xl font-semibold text-gray-900 dark:text-white">
+                      <div className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">
                         {hintText}
                       </div>
                     </div>
