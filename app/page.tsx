@@ -207,20 +207,20 @@ export default function Home() {
       case 1:
         return movie.genre ? `This movie's genre is: ${movie.genre}` : null
       case 2:
-        return movie.rated ? `This movie is rated: ${movie.rated}` : null
-      case 3:
-        return movie.academyAwards || null
-      case 4:
         return movie.runtime ? `This movie's runtime is: ${movie.runtime}` : null
+      case 3:
+        return movie.rated ? `This movie is rated: ${movie.rated}` : null
+      case 4:
+        return movie.academyAwards || null
       case 5:
+        return movie.fourthAndFifthActors ? `This movie features ${movie.fourthAndFifthActors}` : null
+      case 6:
+        return movie.director ? `This movie was directed by ${movie.director}` : null
+      case 7:
+        return movie.firstActor ? `This movie stars ${movie.firstActor}` : null
+      case 8:
         // Return special marker for plot hint (needs special rendering)
         return movie.plotWithRedacted ? '__PLOT_HINT__' : null
-      case 6:
-        return movie.fourthAndFifthActors ? `This movie features ${movie.fourthAndFifthActors}` : null
-      case 7:
-        return movie.director ? `This movie was directed by ${movie.director}` : null
-      case 8:
-        return movie.firstActor ? `This movie stars ${movie.firstActor}` : null
       default:
         return null
     }
