@@ -101,6 +101,24 @@ export default function Home() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
+  // Show suggestions when input is focused and empty
+  useEffect(() => {
+    if (inputRef.current && gameState === 'playing' && userAnswer.length === 0) {
+      const handleFocus = () => {
+        if (allMovieTitles.length > 0) {
+          setSuggestions(allMovieTitles.slice(0, 50))
+          setShowSuggestions(true)
+        }
+      }
+      
+      const input = inputRef.current
+      input.addEventListener('focus', handleFocus)
+      return () => {
+        input.removeEventListener('focus', handleFocus)
+      }
+    }
+  }, [allMovieTitles, gameState, userAnswer.length])
+
   const loadDailyMovie = async () => {
     setLoading(true)
     setError(null)
@@ -184,23 +202,6 @@ export default function Home() {
       }
     }
   }
-
-  // Show suggestions when input is focused and empty
-  useEffect(() => {
-    if (inputRef.current && gameState === 'playing' && userAnswer.length === 0) {
-      const handleFocus = () => {
-        if (allMovieTitles.length > 0) {
-          setSuggestions(allMovieTitles.slice(0, 50))
-          setShowSuggestions(true)
-        }
-      }
-      
-      inputRef.current.addEventListener('focus', handleFocus)
-      return () => {
-        inputRef.current?.removeEventListener('focus', handleFocus)
-      }
-    }
-  }, [allMovieTitles, gameState, userAnswer.length])
   }
 
   const handleSuggestionClick = (suggestion: string) => {
@@ -422,8 +423,10 @@ export default function Home() {
         {gameState === 'playing' && movie && (
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 sm:p-8 relative">
             {/* Hints Used Counter - Top Right */}
-            <div className="absolute top-4 right-4 text-sm font-semibold text-gray-600 dark:text-gray-400">
-              Hints Used: {hintsUsed}
+            <div className="absolute top-4 right-4 bg-blue-100 dark:bg-blue-900/30 border-2 border-blue-300 dark:border-blue-700 rounded-lg px-4 py-2 shadow-md">
+              <div className="text-lg sm:text-xl font-bold text-blue-800 dark:text-blue-200">
+                Hints Used: {hintsUsed}
+              </div>
             </div>
 
             {/* Year */}
