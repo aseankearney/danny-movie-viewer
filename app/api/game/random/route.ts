@@ -30,6 +30,15 @@ export async function GET() {
       movieDetails = await getMovieByIMDbId(movieId)
     }
 
+    // Parse actors to get first, fourth, and fifth billed
+    const actors = movieDetails?.Actors ? movieDetails.Actors.split(',').map(a => a.trim()) : []
+    const firstActor = actors[0] || null
+    const fourthActor = actors[3] || null
+    const fifthActor = actors[4] || null
+    const fourthAndFifth = fourthActor && fifthActor 
+      ? `${fourthActor} and ${fifthActor}`
+      : fourthActor || fifthActor || null
+
     return NextResponse.json({
       movieId: movieStatus.movieId,
       status: movieStatus.status,
@@ -37,6 +46,12 @@ export async function GET() {
       title: movieDetails?.Title || null,
       poster: movieDetails?.Poster || null,
       plot: movieDetails?.Plot || null,
+      genre: movieDetails?.Genre || null,
+      rated: movieDetails?.Rated || null,
+      runtime: movieDetails?.Runtime || null,
+      director: movieDetails?.Director || null,
+      firstActor: firstActor,
+      fourthAndFifthActors: fourthAndFifth,
     })
   } catch (error: any) {
     console.error('Error fetching random movie:', error)

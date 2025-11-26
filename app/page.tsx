@@ -10,6 +10,12 @@ interface GameMovie {
   title: string | null
   poster: string | null
   plot: string | null
+  genre: string | null
+  rated: string | null
+  runtime: string | null
+  director: string | null
+  firstActor: string | null
+  fourthAndFifthActors: string | null
 }
 
 export default function Home() {
@@ -24,6 +30,8 @@ export default function Home() {
   const [loadingAutocomplete, setLoadingAutocomplete] = useState(false)
   const [allMovieTitles, setAllMovieTitles] = useState<string[]>([])
   const [loadingTitles, setLoadingTitles] = useState(true)
+  const [hintsUsed, setHintsUsed] = useState(0)
+  const [hintsShown, setHintsShown] = useState<number[]>([]) // Array of hint levels shown
   const inputRef = useRef<HTMLInputElement>(null)
   const suggestionsRef = useRef<HTMLDivElement>(null)
 
@@ -71,6 +79,8 @@ export default function Home() {
     setUserAnswer('')
     setSuggestions([])
     setShowSuggestions(false)
+    setHintsUsed(0)
+    setHintsShown([])
     
     try {
       const response = await fetch('/api/game/random')
@@ -225,6 +235,35 @@ export default function Home() {
     loadNewMovie()
   }
 
+  const getHintText = (level: number): string | null => {
+    if (!movie) return null
+
+    switch (level) {
+      case 1:
+        return movie.genre ? `This movie's genre is: ${movie.genre}` : null
+      case 2:
+        return movie.rated ? `This movie is rated: ${movie.rated}` : null
+      case 3:
+        return movie.runtime ? `This movie's runtime is: ${movie.runtime}` : null
+      case 4:
+        return movie.fourthAndFifthActors ? `This movie features ${movie.fourthAndFifthActors}` : null
+      case 5:
+        return movie.director ? `This movie was directed by ${movie.director}` : null
+      case 6:
+        return movie.firstActor ? `This movie stars ${movie.firstActor}` : null
+      default:
+        return null
+    }
+  }
+
+  const handleGetHint = () => {
+    if (hintsUsed >= 6) return // Max 6 hints
+    
+    const nextHintLevel = hintsUsed + 1
+    setHintsUsed(nextHintLevel)
+    setHintsShown([...hintsShown, nextHintLevel])
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
@@ -267,7 +306,12 @@ export default function Home() {
         </h1>
 
         {!submitted && movie && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 sm:p-8">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 sm:p-8 relative">
+            {/* Hints Used Counter - Top Right */}
+            <div className="absolute top-4 right-4 text-sm font-semibold text-gray-600 dark:text-gray-400">
+              Hints Used: {hintsUsed}
+            </div>
+
             {/* Year */}
             <div className="text-center mb-6">
               <div className="text-6xl sm:text-7xl font-bold text-blue-600 dark:text-blue-400 mb-2">
@@ -290,6 +334,23 @@ export default function Home() {
                 )}
               </div>
             </div>
+
+            {/* Hints Display */}
+            {hintsShown.length > 0 && (
+              <div className="mb-6 space-y-2">
+                {hintsShown.map((hintLevel) => {
+                  const hintText = getHintText(hintLevel)
+                  return hintText ? (
+                    <div
+                      key={hintLevel}
+                      className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 text-sm text-gray-800 dark:text-gray-200"
+                    >
+                      {hintText}
+                    </div>
+                  ) : null
+                })}
+              </div>
+            )}
 
             {/* Input Form */}
             <form onSubmit={handleSubmit} className="relative">
@@ -336,13 +397,23 @@ export default function Home() {
                 </div>
               </div>
 
-              <button
-                type="submit"
-                disabled={!userAnswer.trim()}
-                className="w-full px-6 py-4 bg-blue-500 hover:bg-blue-600 active:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg font-semibold text-lg transition-colors touch-manipulation"
-              >
-                Submit Answer
-              </button>
+              <div className="flex gap-3">
+                <button
+                  type="submit"
+                  disabled={!userAnswer.trim()}
+                  className="flex-1 px-6 py-4 bg-blue-500 hover:bg-blue-600 active:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg font-semibold text-lg transition-colors touch-manipulation"
+                >
+                  Submit Answer
+                </button>
+                <button
+                  type="button"
+                  onClick={handleGetHint}
+                  disabled={hintsUsed >= 6 || submitted}
+                  className="px-6 py-4 bg-purple-500 hover:bg-purple-600 active:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg font-semibold text-lg transition-colors touch-manipulation whitespace-nowrap"
+                >
+                  Get a Hint
+                </button>
+              </div>
             </form>
           </div>
         )}

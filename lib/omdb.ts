@@ -9,6 +9,11 @@ export interface OMDbMovieResponse {
   Poster: string
   Type: string
   Plot?: string
+  Genre?: string
+  Rated?: string
+  Runtime?: string
+  Director?: string
+  Actors?: string
   Response: string
   Error?: string
 }
