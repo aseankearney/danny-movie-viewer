@@ -132,9 +132,27 @@ export async function getDailyMovie(date: string): Promise<MovieStatus | null> {
   try {
     console.log(`Getting daily movie for date: ${date}`)
     
-    const validMovies = await getValidMoviesForDaily()
+    // Get all movies with Seen-Liked or Seen-Hated status
+    const allMovies = await sql`
+      SELECT movie_id, status, updated_at
+      FROM movie_statuses
+      WHERE status IN ('Seen-Liked', 'Seen-Hated')
+      ORDER BY movie_id
+    `
     
-    console.log(`Found ${validMovies.length} valid movies (with IMDb IDs)`)
+    console.log(`Found ${allMovies.length} movies with Seen-Liked or Seen-Hated status`)
+    
+    if (allMovies.length === 0) {
+      return null
+    }
+    
+    // Filter to only include movies with valid IMDb IDs (starting with 'tt')
+    const validMovies = allMovies.filter(movie => {
+      const movieId = String(movie.movie_id)
+      return movieId.startsWith('tt') && movieId.length > 2
+    })
+    
+    console.log(`Found ${validMovies.length} valid movies (with IMDb IDs) out of ${allMovies.length} total`)
     
     if (validMovies.length === 0) {
       console.log('No valid movies with IMDb IDs found')
@@ -156,10 +174,18 @@ export async function getDailyMovie(date: string): Promise<MovieStatus | null> {
     
     console.log(`Selected movie at index ${index} (hash: ${hash}): ${row.movie_id}`)
     
+    // Handle updated_at - it might be a Date object or a string
+    let updatedAt: string
+    if (row.updated_at instanceof Date) {
+      updatedAt = row.updated_at.toISOString()
+    } else {
+      updatedAt = new Date(row.updated_at).toISOString()
+    }
+    
     return {
       movieId: row.movie_id,
       status: row.status as 'Seen-Liked' | 'Seen-Hated',
-      updatedAt: row.updated_at.toISOString(),
+      updatedAt: updatedAt,
     }
   } catch (error) {
     console.error('Error fetching daily movie:', error)

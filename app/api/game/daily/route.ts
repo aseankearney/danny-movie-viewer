@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getDailyMovie, getValidMoviesForDaily } from '@/lib/db'
+import { getDailyMovie } from '@/lib/db'
 import { getMovieByIMDbId } from '@/lib/omdb'
 import { removeNamesFromPlot, extractAcademyAwards, replaceProperNounsWithRedacted } from '@/lib/plotUtils'
 
@@ -13,16 +13,14 @@ export async function GET() {
     }
 
     // Get today's date in YYYY-MM-DD format (UTC)
-    // This ensures consistent puzzle selection across all timezones
     const now = new Date()
     const today = now.toISOString().split('T')[0]
     
     console.log(`Fetching daily puzzle for date: ${today}`)
 
-    // Get all valid movies and the starting index
-    const validMovies = await getValidMoviesForDaily()
+    const movieStatus = await getDailyMovie(today)
     
-    if (validMovies.length === 0) {
+    if (!movieStatus) {
       return NextResponse.json(
         { 
           error: 'No movies available. Danny needs to review some movies in the tracker app first! The game needs movies marked as "Seen-Liked" or "Seen-Hated".' 
@@ -31,59 +29,18 @@ export async function GET() {
       )
     }
 
-    // Calculate starting index based on date hash
-    let hash = 0
-    for (let i = 0; i < today.length; i++) {
-      const char = today.charCodeAt(i)
-      hash = ((hash << 5) - hash) + char
-      hash = hash & hash
-    }
-    const startIndex = Math.abs(hash) % validMovies.length
-
-    // Try movies starting from the hash index, with fallback to next movies
-    let movieStatus = null
+    // Try to fetch movie details from OMDb
+    const movieId = String(movieStatus.movieId)
     let movieDetails = null
-    let attempts = 0
-    const maxAttempts = Math.min(validMovies.length, 10) // Try up to 10 movies
-
-    for (let i = 0; i < maxAttempts; i++) {
-      const index = (startIndex + i) % validMovies.length
-      const movie = validMovies[index]
-      const movieId = String(movie.movie_id)
-      
-      console.log(`Attempting movie ${i + 1}/${maxAttempts}: ${movieId} (index ${index})`)
-      
-      if (!movieId.startsWith('tt')) {
-        console.log(`Skipping ${movieId} - not a valid IMDb ID`)
-        continue
-      }
-      
-      // Try to fetch movie details from OMDb
+    
+    if (movieId.startsWith('tt')) {
       movieDetails = await getMovieByIMDbId(movieId)
-      
-      if (movieDetails && movieDetails.Title) {
-        // Success! We found a valid movie
-        const updatedAt = movie.updated_at instanceof Date 
-          ? movie.updated_at.toISOString() 
-          : new Date(movie.updated_at).toISOString()
-        
-        movieStatus = {
-          movieId: movie.movie_id,
-          status: movie.status as 'Seen-Liked' | 'Seen-Hated',
-          updatedAt: updatedAt,
-        }
-        console.log(`Successfully found movie: ${movieDetails.Title} (${movieId})`)
-        break
-      } else {
-        console.log(`Failed to fetch movie details for ${movieId}, trying next movie...`)
-        movieDetails = null // Reset for next attempt
-      }
     }
 
-    if (!movieStatus || !movieDetails) {
+    if (!movieDetails || !movieDetails.Title) {
       return NextResponse.json(
         { 
-          error: `Could not find a valid movie with complete data. Tried ${maxAttempts} movies. Please ensure movies in the database have valid IMDb IDs and exist in OMDb.` 
+          error: `Failed to fetch movie details for ${movieId}. The movie may not exist in OMDb.` 
         },
         { status: 404 }
       )
