@@ -656,10 +656,63 @@ export default function Home() {
                 </button>
               </form>
             ) : (
-              <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-                <p className="text-green-800 dark:text-green-200 font-semibold">
-                  ✓ Submitted to leaderboard!
-                </p>
+              <div className="space-y-4">
+                <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                  <p className="text-green-800 dark:text-green-200 font-semibold">
+                    ✓ Submitted to leaderboard!
+                  </p>
+                </div>
+                <button
+                  onClick={handleShowLeaderboard}
+                  className="w-full px-6 py-4 bg-purple-500 hover:bg-purple-600 active:bg-purple-700 text-white rounded-lg font-semibold text-lg transition-colors touch-manipulation"
+                >
+                  Show Leaderboard
+                </button>
+              </div>
+            )}
+
+            {/* Leaderboard Display */}
+            {showLeaderboard && (
+              <div className="mt-6 border-t-2 border-gray-200 dark:border-gray-700 pt-6">
+                <h3 className="text-2xl font-bold text-center mb-4 text-gray-900 dark:text-white">
+                  Today's Leaderboard
+                </h3>
+                {loadingLeaderboard ? (
+                  <div className="text-center py-4 text-gray-600 dark:text-gray-400">
+                    Loading leaderboard...
+                  </div>
+                ) : leaderboard.length === 0 ? (
+                  <div className="text-center py-4 text-gray-600 dark:text-gray-400">
+                    No entries yet. Be the first!
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                    {leaderboard.map((entry, index) => (
+                      <div
+                        key={index}
+                        className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="text-lg font-bold text-gray-500 dark:text-gray-400 w-8">
+                            {index + 1}
+                          </span>
+                          <span className="text-lg font-semibold text-gray-900 dark:text-white">
+                            {entry.playerName}
+                          </span>
+                        </div>
+                        <span className="text-lg font-semibold text-blue-600 dark:text-blue-400">
+                          {entry.hintsUsed} {entry.hintsUsed === 1 ? 'Hint' : 'Hints'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <button
+                  onClick={() => setShowLeaderboard(false)}
+                  className="mt-4 w-full px-6 py-3 bg-gray-500 hover:bg-gray-600 active:bg-gray-700 text-white rounded-lg font-semibold text-base transition-colors touch-manipulation"
+                >
+                  Hide Leaderboard
+                </button>
               </div>
             )}
           </div>
