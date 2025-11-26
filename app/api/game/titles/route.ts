@@ -1,22 +1,13 @@
 import { NextResponse } from 'next/server'
-import { getAllMovieIds } from '@/lib/db'
-import { getMovieByIMDbId } from '@/lib/omdb'
+import { searchMoviesByTitle } from '@/lib/omdb'
 
 // Cache for movie titles (in-memory, resets on server restart)
-const movieTitleCache = new Map<string, string>()
 let allTitlesCache: string[] | null = null
 let cacheTimestamp: number = 0
-const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
+const CACHE_DURATION = 24 * 60 * 60 * 1000 // 24 hours
 
 export async function GET() {
   try {
-    if (!process.env.DATABASE_URL) {
-      return NextResponse.json(
-        { error: 'DATABASE_URL is not set' },
-        { status: 500 }
-      )
-    }
-
     if (!process.env.OMDB_API_KEY) {
       return NextResponse.json(
         { error: 'OMDB_API_KEY is not set' },
@@ -29,57 +20,72 @@ export async function GET() {
       return NextResponse.json({ titles: allTitlesCache })
     }
 
-    // Get all movie IDs from database
-    const movieIds = await getAllMovieIds()
+    console.log('Building comprehensive movie list from OMDb...')
+    const titles = new Set<string>()
     
-    if (movieIds.length === 0) {
-      return NextResponse.json({ titles: [] })
+    // Search by year ranges (1989-2024, the range from the tracker app)
+    const currentYear = new Date().getFullYear()
+    const startYear = 1989
+    const endYear = currentYear
+    
+    // Search by common single letters and common words
+    const searchTerms = [
+      // Single letters
+      ...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split(''),
+      // Common words
+      'the', 'a', 'an', 'in', 'on', 'at', 'of', 'to', 'for', 'with',
+      // Common movie terms
+      'movie', 'film', 'story', 'love', 'man', 'woman', 'life', 'time', 'day', 'night',
+      'war', 'city', 'world', 'king', 'queen', 'star', 'dark', 'light', 'new', 'old',
+      // Numbers (for sequels)
+      '2', '3', '4', '5', 'II', 'III', 'IV', 'V'
+    ]
+
+    // Search by years (sample years to get diverse results)
+    const yearSamples = []
+    for (let year = startYear; year <= endYear; year += 5) {
+      yearSamples.push(year)
+    }
+    // Also include recent years more densely
+    for (let year = currentYear - 3; year <= currentYear; year++) {
+      if (!yearSamples.includes(year)) {
+        yearSamples.push(year)
+      }
     }
 
-    const titles: string[] = []
-    const uncachedIds: string[] = []
-    
-    // Check cache first
-    for (const movieId of movieIds) {
-      if (movieTitleCache.has(movieId)) {
-        const title = movieTitleCache.get(movieId)!
-        if (title && !titles.includes(title)) {
-          titles.push(title)
+    // Search by year + common terms
+    for (const year of yearSamples) {
+      for (const term of ['the', 'a', 'movie', 'film'].slice(0, 2)) { // Limit to avoid too many requests
+        try {
+          const yearTitles = await searchMoviesByTitle(`${term} ${year}`, 1)
+          yearTitles.forEach(title => titles.add(title))
+          await new Promise(resolve => setTimeout(resolve, 200)) // Rate limiting
+        } catch (error) {
+          console.error(`Error searching for ${term} ${year}:`, error)
         }
-      } else if (movieId.startsWith('tt')) {
-        uncachedIds.push(movieId)
       }
     }
 
-    // Fetch uncached movies in batches (to avoid rate limiting)
-    const batchSize = 10
-    for (let i = 0; i < uncachedIds.length; i += batchSize) {
-      const batch = uncachedIds.slice(i, i + batchSize)
-      
-      await Promise.all(
-        batch.map(async (movieId) => {
-          try {
-            const movie = await getMovieByIMDbId(movieId)
-            if (movie && movie.Title) {
-              movieTitleCache.set(movieId, movie.Title)
-              if (!titles.includes(movie.Title)) {
-                titles.push(movie.Title)
-              }
-            }
-          } catch (error) {
-            console.error(`Error fetching movie ${movieId}:`, error)
-          }
-        })
-      )
-      
-      // Small delay between batches to avoid rate limiting
-      if (i + batchSize < uncachedIds.length) {
-        await new Promise(resolve => setTimeout(resolve, 200))
+    // Search by common terms (multiple pages)
+    for (const term of searchTerms.slice(0, 20)) { // Limit to first 20 to avoid too many requests
+      try {
+        // Get multiple pages for each term
+        for (let page = 1; page <= 3; page++) {
+          const termTitles = await searchMoviesByTitle(term, page)
+          termTitles.forEach(title => titles.add(title))
+          
+          if (termTitles.length < 10) break // No more results
+          await new Promise(resolve => setTimeout(resolve, 200)) // Rate limiting
+        }
+      } catch (error) {
+        console.error(`Error searching for term ${term}:`, error)
       }
     }
 
-    // Sort titles alphabetically
-    const sortedTitles = titles.sort()
+    // Convert to sorted array
+    const sortedTitles = Array.from(titles).sort()
+    
+    console.log(`Built movie list with ${sortedTitles.length} titles`)
     
     // Cache the results
     allTitlesCache = sortedTitles

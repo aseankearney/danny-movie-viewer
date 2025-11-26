@@ -53,37 +53,24 @@ export default function Home() {
   const suggestionsRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    // Pre-load movie titles for each letter of the alphabet
-    const loadInitialTitles = async () => {
+    // Load all movie titles from database
+    const loadAllTitles = async () => {
       setLoadingTitles(true)
-      const titles: string[] = []
-      const seenTitles = new Set<string>()
-
-      // Load 10 movies for each letter
-      for (const letter of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ') {
-        try {
-          const response = await fetch(`/api/game/autocomplete?letter=${letter}`)
-          const data = await response.json()
-          if (data.suggestions && Array.isArray(data.suggestions)) {
-            for (const title of data.suggestions) {
-              if (!seenTitles.has(title)) {
-                titles.push(title)
-                seenTitles.add(title)
-              }
-            }
-          }
-          // Small delay to avoid rate limiting
-          await new Promise(resolve => setTimeout(resolve, 100))
-        } catch (error) {
-          console.error(`Error loading titles for letter ${letter}:`, error)
+      try {
+        // First, get all movies from Danny's database
+        const response = await fetch('/api/game/titles')
+        const data = await response.json()
+        if (data.titles && Array.isArray(data.titles)) {
+          setAllMovieTitles(data.titles)
         }
+      } catch (error) {
+        console.error('Error loading movie titles:', error)
+      } finally {
+        setLoadingTitles(false)
       }
-
-      setAllMovieTitles(titles)
-      setLoadingTitles(false)
     }
     
-    loadInitialTitles()
+    loadAllTitles()
     loadDailyMovie()
   }, [])
 
@@ -172,32 +159,51 @@ export default function Home() {
       setLoadingAutocomplete(true)
       setShowSuggestions(true)
       
+      const valueLower = value.toLowerCase()
+      let suggestions: string[] = []
+      
+      // First, filter from all loaded titles (OMDb comprehensive list)
+      const loadedMatches = allMovieTitles.filter(title => 
+        title.toLowerCase().includes(valueLower)
+      )
+      suggestions.push(...loadedMatches)
+      
+      // Also search OMDb for additional real-time matches
       try {
-        // Search OMDb for movies matching the query
         const response = await fetch(`/api/game/autocomplete?q=${encodeURIComponent(value)}`)
         const data = await response.json()
         
-        let suggestions = data.suggestions || []
-        
-        // Ensure the correct movie is included if it matches
-        if (movie?.title && 
-            movie.title.toLowerCase().includes(value.toLowerCase()) && 
-            !suggestions.includes(movie.title)) {
-          suggestions = [movie.title, ...suggestions]
+        if (data.suggestions && Array.isArray(data.suggestions)) {
+          // Add OMDb results that aren't already in suggestions
+          const seenTitles = new Set(suggestions.map(t => t.toLowerCase()))
+          for (const title of data.suggestions) {
+            if (!seenTitles.has(title.toLowerCase())) {
+              suggestions.push(title)
+              seenTitles.add(title.toLowerCase())
+            }
+          }
         }
-        
-        setSuggestions(suggestions.slice(0, 50))
-        setShowSuggestions(suggestions.length > 0)
       } catch (error) {
-        console.error('Error fetching autocomplete:', error)
-        setSuggestions([])
-      } finally {
-        setLoadingAutocomplete(false)
+        console.error('Error fetching autocomplete from OMDb:', error)
+        // Continue with just loaded matches
       }
+      
+      // Ensure the correct movie is included if it matches
+      if (movie?.title && 
+          movie.title.toLowerCase().includes(valueLower) && 
+          !suggestions.some(t => t.toLowerCase() === movie.title!.toLowerCase())) {
+        suggestions = [movie.title, ...suggestions]
+      }
+      
+      // Remove duplicates and limit to 100 suggestions
+      const uniqueSuggestions = Array.from(new Set(suggestions))
+      setSuggestions(uniqueSuggestions.slice(0, 100))
+      setShowSuggestions(uniqueSuggestions.length > 0)
+      setLoadingAutocomplete(false)
     } else if (value.length === 0) {
-      // Show initial suggestions from pre-loaded titles
+      // Show initial suggestions from pre-loaded titles (OMDb list)
       if (allMovieTitles.length > 0) {
-        setSuggestions(allMovieTitles.slice(0, 50))
+        setSuggestions(allMovieTitles.slice(0, 100))
         setShowSuggestions(true)
       } else {
         setSuggestions([])
@@ -456,14 +462,14 @@ export default function Home() {
         {gameState === 'playing' && movie && (
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 sm:p-8 relative">
             {/* Hints Used Counter - Top Right */}
-            <div className="absolute top-4 right-4 bg-blue-100 dark:bg-blue-900/30 border-2 border-blue-300 dark:border-blue-700 rounded-lg px-4 py-2 shadow-md">
-              <div className="text-lg sm:text-xl font-bold text-blue-800 dark:text-blue-200">
+            <div className="absolute top-4 right-4 bg-blue-100 dark:bg-blue-900/30 border-2 border-blue-300 dark:border-blue-700 rounded-lg px-3 py-1.5 sm:px-4 sm:py-2 shadow-md z-10">
+              <div className="text-base sm:text-lg md:text-xl font-bold text-blue-800 dark:text-blue-200">
                 Hints Used: {hintsUsed}
               </div>
             </div>
 
-            {/* Year */}
-            <div className="text-center mb-6">
+            {/* Year - with top padding to avoid overlap on mobile */}
+            <div className="text-center mb-6 pt-12 sm:pt-6">
               <div className="text-6xl sm:text-7xl font-bold text-blue-600 dark:text-blue-400 mb-2">
                 {movie.year || '?'}
               </div>
@@ -555,21 +561,27 @@ export default function Home() {
                   />
                   
                   {/* Autocomplete Suggestions */}
-                  {showSuggestions && suggestions.length > 0 && (
+                  {showSuggestions && (suggestions.length > 0 || loadingAutocomplete) && (
                     <div
                       ref={suggestionsRef}
                       className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-60 overflow-y-auto"
                     >
-                      {suggestions.map((suggestion, index) => (
-                        <button
-                          key={index}
-                          type="button"
-                          onClick={() => handleSuggestionClick(suggestion)}
-                          className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-600 last:border-b-0"
-                        >
-                          {suggestion}
-                        </button>
-                      ))}
+                      {loadingAutocomplete ? (
+                        <div className="px-4 py-2 text-gray-500 dark:text-gray-400 text-center">
+                          Loading suggestions...
+                        </div>
+                      ) : (
+                        suggestions.map((suggestion, index) => (
+                          <button
+                            key={index}
+                            type="button"
+                            onClick={() => handleSuggestionClick(suggestion)}
+                            className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-600 last:border-b-0"
+                          >
+                            {suggestion}
+                          </button>
+                        ))
+                      )}
                     </div>
                   )}
                 </div>
