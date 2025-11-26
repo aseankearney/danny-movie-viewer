@@ -149,18 +149,30 @@ export function replaceProperNounsWithRedacted(plot: string): Array<{ text: stri
  * Extracts Academy Award information from Awards string
  */
 export function extractAcademyAwards(awards: string | null): string | null {
-  if (!awards) return null
+  if (!awards) {
+    // If no awards data, explicitly state 0 Oscars
+    return 'This movie has been nominated for or won 0 Oscars.'
+  }
+
+  // Check for explicit "N/A" or empty awards
+  if (awards.trim().toLowerCase() === 'n/a' || awards.trim() === '') {
+    return 'This movie has been nominated for or won 0 Oscars.'
+  }
 
   // Look for Oscar/Academy Award mentions
   const oscarRegex = /(?:Won|won|Nominated for|nominated for)\s+(\d+)\s+(?:Oscar|Academy Award)/gi
   const matches = awards.match(oscarRegex)
   
+  // Check if there are any Oscar mentions at all
+  const hasOscarMention = awards.toLowerCase().includes('oscar') || awards.toLowerCase().includes('academy award')
+  
   if (!matches || matches.length === 0) {
-    // Check for general Oscar mentions
-    if (awards.toLowerCase().includes('oscar') || awards.toLowerCase().includes('academy award')) {
-      return awards
+    // If there's no Oscar mention, it means 0 Oscars
+    if (!hasOscarMention) {
+      return 'This movie has been nominated for or won 0 Oscars.'
     }
-    return null
+    // If there's a mention but no numbers, return the raw awards text
+    return awards
   }
 
   // Extract specific award categories if available
@@ -176,13 +188,28 @@ export function extractAcademyAwards(awards: string | null): string | null {
     }
   }
 
+  // Extract nomination count
+  const nominationRegex = /(?:Nominated for|nominated for)\s+(\d+)\s+(?:Oscar|Academy Award)/gi
+  const nominationMatches = awards.match(nominationRegex)
+  
+  if (nominationMatches && nominationMatches.length > 0) {
+    const nominationCount = nominationMatches[0].match(/\d+/)?.[0]
+    if (nominationCount && parseInt(nominationCount) === 0) {
+      return 'This movie has been nominated for or won 0 Oscars.'
+    }
+  }
+
   // Fallback to count
   const countMatch = awards.match(/(\d+)\s+(?:Oscar|Academy Award)/i)
   if (countMatch) {
-    const count = countMatch[1]
-    return `This movie won ${count} ${count === '1' ? 'Oscar' : 'Oscars'}`
+    const count = parseInt(countMatch[1])
+    if (count === 0) {
+      return 'This movie has been nominated for or won 0 Oscars.'
+    }
+    return `This movie won ${count} ${count === 1 ? 'Oscar' : 'Oscars'}`
   }
 
-  return awards
+  // If we have awards data but no Oscar info, it means 0 Oscars
+  return 'This movie has been nominated for or won 0 Oscars.'
 }
 
