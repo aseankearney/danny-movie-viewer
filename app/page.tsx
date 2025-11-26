@@ -16,6 +16,8 @@ interface GameMovie {
   director: string | null
   firstActor: string | null
   fourthAndFifthActors: string | null
+  plotWithoutNames: string | null
+  academyAwards: string | null
   puzzleDate: string
 }
 
@@ -204,12 +206,16 @@ export default function Home() {
       case 2:
         return movie.rated ? `This movie is rated: ${movie.rated}` : null
       case 3:
-        return movie.runtime ? `This movie's runtime is: ${movie.runtime}` : null
+        return movie.academyAwards || null
       case 4:
-        return movie.fourthAndFifthActors ? `This movie features ${movie.fourthAndFifthActors}` : null
+        return movie.runtime ? `This movie's runtime is: ${movie.runtime}` : null
       case 5:
-        return movie.director ? `This movie was directed by ${movie.director}` : null
+        return movie.plotWithoutNames || null
       case 6:
+        return movie.fourthAndFifthActors ? `This movie features ${movie.fourthAndFifthActors}` : null
+      case 7:
+        return movie.director ? `This movie was directed by ${movie.director}` : null
+      case 8:
         return movie.firstActor ? `This movie stars ${movie.firstActor}` : null
       default:
         return null
@@ -223,13 +229,13 @@ export default function Home() {
 
     const hasAnswer = userAnswer.trim().length > 0
 
-    // If "No Clue" was pressed (empty answer)
-    if (!hasAnswer) {
-      if (hintsUsed >= 6) {
-        // Show loss screen
-        setGameState('lost')
-        return
-      }
+      // If "No Clue" was pressed (empty answer)
+      if (!hasAnswer) {
+        if (hintsUsed >= 8) {
+          // Show loss screen
+          setGameState('lost')
+          return
+        }
       
       // Increment hint and show it
       const nextHintLevel = hintsUsed + 1
@@ -250,7 +256,7 @@ export default function Home() {
       setShowSuggestions(false)
     } else {
       // Wrong answer
-      if (hintsUsed >= 6) {
+      if (hintsUsed >= 8) {
         // Show loss screen
         setGameState('lost')
         return
@@ -381,15 +387,17 @@ export default function Home() {
 
             {/* Hints Display */}
             {hintsShown.length > 0 && (
-              <div className="mb-6 space-y-2">
+              <div className="mb-8 space-y-4">
                 {hintsShown.map((hintLevel) => {
                   const hintText = getHintText(hintLevel)
                   return hintText ? (
                     <div
                       key={hintLevel}
-                      className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 text-sm text-gray-800 dark:text-gray-200"
+                      className="text-center"
                     >
-                      {hintText}
+                      <div className="text-2xl sm:text-3xl font-semibold text-gray-900 dark:text-white">
+                        {hintText}
+                      </div>
                     </div>
                   ) : null
                 })}

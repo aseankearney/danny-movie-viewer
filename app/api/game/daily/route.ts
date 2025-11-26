@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getDailyMovie } from '@/lib/db'
 import { getMovieByIMDbId } from '@/lib/omdb'
+import { removeNamesFromPlot, extractAcademyAwards } from '@/lib/plotUtils'
 
 export async function GET() {
   try {
@@ -42,6 +43,14 @@ export async function GET() {
       ? `${fourthActor} and ${fifthActor}`
       : fourthActor || fifthActor || null
 
+    // Process plot to remove names
+    const plotWithoutNames = movieDetails?.Plot
+      ? removeNamesFromPlot(movieDetails.Plot, movieDetails.Actors || null, movieDetails.Director || null)
+      : null
+
+    // Extract Academy Awards
+    const academyAwards = extractAcademyAwards(movieDetails?.Awards || null)
+
     return NextResponse.json({
       movieId: movieStatus.movieId,
       status: movieStatus.status,
@@ -55,6 +64,8 @@ export async function GET() {
       director: movieDetails?.Director || null,
       firstActor: firstActor,
       fourthAndFifthActors: fourthAndFifth,
+      plotWithoutNames: plotWithoutNames,
+      academyAwards: academyAwards,
       puzzleDate: today,
     })
   } catch (error: any) {

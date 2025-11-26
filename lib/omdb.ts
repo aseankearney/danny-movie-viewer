@@ -14,6 +14,7 @@ export interface OMDbMovieResponse {
   Runtime?: string
   Director?: string
   Actors?: string
+  Awards?: string
   Response: string
   Error?: string
 }
