@@ -185,16 +185,79 @@ export default function Home() {
     }
   }
 
+  // Show suggestions when input is focused and empty
+  useEffect(() => {
+    if (inputRef.current && gameState === 'playing' && userAnswer.length === 0) {
+      const handleFocus = () => {
+        if (allMovieTitles.length > 0) {
+          setSuggestions(allMovieTitles.slice(0, 50))
+          setShowSuggestions(true)
+        }
+      }
+      
+      inputRef.current.addEventListener('focus', handleFocus)
+      return () => {
+        inputRef.current?.removeEventListener('focus', handleFocus)
+      }
+    }
+  }, [allMovieTitles, gameState, userAnswer.length])
+  }
+
   const handleSuggestionClick = (suggestion: string) => {
     setUserAnswer(suggestion)
     setShowSuggestions(false)
     inputRef.current?.focus()
   }
 
+  // Convert Roman numerals to Arabic numerals
+  const romanToArabic = (text: string): string => {
+    const romanMap: Record<string, number> = {
+      'i': 1, 'v': 5, 'x': 10, 'l': 50, 'c': 100, 'd': 500, 'm': 1000
+    }
+    
+    // Replace common Roman numeral patterns
+    const patterns = [
+      { roman: /(\b)([ivxlcdm]+)(\b)/gi, convert: (match: string, p1: string, roman: string, p2: string) => {
+        const upper = roman.toUpperCase()
+        let num = 0
+        for (let i = 0; i < upper.length; i++) {
+          const current = romanMap[upper[i].toLowerCase()] || 0
+          const next = romanMap[upper[i + 1]?.toLowerCase()] || 0
+          if (current < next) {
+            num -= current
+          } else {
+            num += current
+          }
+        }
+        return num > 0 ? `${p1}${num}${p2}` : match
+      }}
+    ]
+    
+    let result = text
+    // Simple conversion for common cases
+    const commonRomans: Record<string, string> = {
+      ' i ': ' 1 ', ' ii ': ' 2 ', ' iii ': ' 3 ', ' iv ': ' 4 ', ' v ': ' 5 ',
+      ' vi ': ' 6 ', ' vii ': ' 7 ', ' viii ': ' 8 ', ' ix ': ' 9 ', ' x ': ' 10 ',
+      ' xi ': ' 11 ', ' xii ': ' 12 ', ' xiii ': ' 13 ', ' xiv ': ' 14 ', ' xv ': ' 15 ',
+      ' xvi ': ' 16 ', ' xvii ': ' 17 ', ' xviii ': ' 18 ', ' xix ': ' 19 ', ' xx ': ' 20 '
+    }
+    
+    for (const [roman, arabic] of Object.entries(commonRomans)) {
+      result = result.replace(new RegExp(roman, 'gi'), arabic)
+    }
+    
+    return result
+  }
+
   const normalizeTitle = (title: string): string => {
-    return title
+    let normalized = title
       .toLowerCase()
       .trim()
+    
+    // Convert Roman numerals to Arabic
+    normalized = romanToArabic(normalized)
+    
+    return normalized
       .replace(/[^\w\s]/g, '') // Remove punctuation
       .replace(/\s+/g, ' ') // Normalize whitespace
       .trim()
