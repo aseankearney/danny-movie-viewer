@@ -16,7 +16,10 @@ interface GameMovie {
   director: string | null
   firstActor: string | null
   fourthAndFifthActors: string | null
+  puzzleDate: string
 }
+
+type GameState = 'playing' | 'won' | 'lost'
 
 export default function Home() {
   const [movie, setMovie] = useState<GameMovie | null>(null)
@@ -25,13 +28,15 @@ export default function Home() {
   const [userAnswer, setUserAnswer] = useState('')
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
-  const [submitted, setSubmitted] = useState(false)
-  const [isCorrect, setIsCorrect] = useState(false)
-  const [loadingAutocomplete, setLoadingAutocomplete] = useState(false)
+  const [gameState, setGameState] = useState<GameState>('playing')
+  const [hintsUsed, setHintsUsed] = useState(0)
+  const [hintsShown, setHintsShown] = useState<number[]>([])
+  const [wrongMessage, setWrongMessage] = useState<string | null>(null)
+  const [playerName, setPlayerName] = useState('')
+  const [submittingLeaderboard, setSubmittingLeaderboard] = useState(false)
+  const [leaderboardSubmitted, setLeaderboardSubmitted] = useState(false)
   const [allMovieTitles, setAllMovieTitles] = useState<string[]>([])
   const [loadingTitles, setLoadingTitles] = useState(true)
-  const [hintsUsed, setHintsUsed] = useState(0)
-  const [hintsShown, setHintsShown] = useState<number[]>([]) // Array of hint levels shown
   const inputRef = useRef<HTMLInputElement>(null)
   const suggestionsRef = useRef<HTMLDivElement>(null)
 
@@ -52,7 +57,7 @@ export default function Home() {
     }
     
     loadTitles()
-    loadNewMovie()
+    loadDailyMovie()
   }, [])
 
   useEffect(() => {
@@ -72,18 +77,21 @@ export default function Home() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const loadNewMovie = async () => {
+  const loadDailyMovie = async () => {
     setLoading(true)
     setError(null)
-    setSubmitted(false)
+    setGameState('playing')
     setUserAnswer('')
     setSuggestions([])
     setShowSuggestions(false)
     setHintsUsed(0)
     setHintsShown([])
+    setWrongMessage(null)
+    setPlayerName('')
+    setLeaderboardSubmitted(false)
     
     try {
-      const response = await fetch('/api/game/random')
+      const response = await fetch('/api/game/daily')
       const data = await response.json()
       
       if (!response.ok) {
@@ -113,6 +121,7 @@ export default function Home() {
 
   const handleInputChange = (value: string) => {
     setUserAnswer(value)
+    setWrongMessage(null) // Clear wrong message when typing
     
     if (value.length >= 1 && allMovieTitles.length > 0) {
       const query = value.toLowerCase().trim()
@@ -129,10 +138,7 @@ export default function Home() {
         finalSuggestions = [movie.title, ...matchingTitles]
       }
       
-      // Create a diverse set of suggestions:
-      // - Include the correct movie if it matches
-      // - Include ~10 movies per letter of the alphabet
-      // - Prioritize exact matches and close matches
+      // Create a diverse set of suggestions
       const organizedSuggestions: string[] = []
       const correctTitle = movie?.title
       
@@ -171,31 +177,6 @@ export default function Home() {
     } else if (value.length === 0) {
       setSuggestions([])
       setShowSuggestions(false)
-    } else if (allMovieTitles.length === 0 && !loadingTitles) {
-      // Fallback to API if titles haven't loaded yet
-      handleInputChangeAPI(value)
-    }
-  }
-  
-  const handleInputChangeAPI = async (value: string) => {
-    if (value.length < 2) {
-      setSuggestions([])
-      setShowSuggestions(false)
-      return
-    }
-    
-    setLoadingAutocomplete(true)
-    setShowSuggestions(true)
-    
-    try {
-      const response = await fetch(`/api/game/autocomplete?q=${encodeURIComponent(value)}`)
-      const data = await response.json()
-      setSuggestions(data.suggestions || [])
-    } catch (error) {
-      console.error('Error fetching autocomplete:', error)
-      setSuggestions([])
-    } finally {
-      setLoadingAutocomplete(false)
     }
   }
 
@@ -212,27 +193,6 @@ export default function Home() {
       .replace(/[^\w\s]/g, '') // Remove punctuation
       .replace(/\s+/g, ' ') // Normalize whitespace
       .trim()
-  }
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    if (!movie || !userAnswer.trim()) return
-    
-    // Normalize both answers for comparison
-    const normalizedUserAnswer = normalizeTitle(userAnswer)
-    const normalizedCorrectAnswer = movie.title ? normalizeTitle(movie.title) : ''
-    
-    // Check if answer is correct (flexible matching)
-    const correct = normalizedUserAnswer === normalizedCorrectAnswer
-    
-    setIsCorrect(correct)
-    setSubmitted(true)
-    setShowSuggestions(false)
-  }
-
-  const handleNewGame = () => {
-    loadNewMovie()
   }
 
   const getHintText = (level: number): string | null => {
@@ -256,18 +216,95 @@ export default function Home() {
     }
   }
 
-  const handleGetHint = () => {
-    if (hintsUsed >= 6) return // Max 6 hints
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
     
-    const nextHintLevel = hintsUsed + 1
-    setHintsUsed(nextHintLevel)
-    setHintsShown([...hintsShown, nextHintLevel])
+    if (!movie) return
+
+    const hasAnswer = userAnswer.trim().length > 0
+
+    // If "No Clue" was pressed (empty answer)
+    if (!hasAnswer) {
+      if (hintsUsed >= 6) {
+        // Show loss screen
+        setGameState('lost')
+        return
+      }
+      
+      // Increment hint and show it
+      const nextHintLevel = hintsUsed + 1
+      setHintsUsed(nextHintLevel)
+      setHintsShown([...hintsShown, nextHintLevel])
+      setWrongMessage('No clue used. Here\'s a hint:')
+      return
+    }
+
+    // Check if answer is correct
+    const normalizedUserAnswer = normalizeTitle(userAnswer)
+    const normalizedCorrectAnswer = movie.title ? normalizeTitle(movie.title) : ''
+    const correct = normalizedUserAnswer === normalizedCorrectAnswer
+
+    if (correct) {
+      // Show win screen
+      setGameState('won')
+      setShowSuggestions(false)
+    } else {
+      // Wrong answer
+      if (hintsUsed >= 6) {
+        // Show loss screen
+        setGameState('lost')
+        return
+      }
+      
+      // Increment hint and show it
+      const nextHintLevel = hintsUsed + 1
+      setHintsUsed(nextHintLevel)
+      setHintsShown([...hintsShown, nextHintLevel])
+      setWrongMessage('Wrong answer! Here\'s a hint:')
+      setUserAnswer('') // Clear input for next guess
+    }
+  }
+
+  const handleSubmitLeaderboard = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!movie || !playerName.trim() || leaderboardSubmitted) return
+
+    setSubmittingLeaderboard(true)
+    
+    try {
+      const response = await fetch('/api/leaderboard/submit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          playerName: playerName.trim(),
+          hintsUsed: hintsUsed,
+          puzzleDate: movie.puzzleDate,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok && data.success) {
+        setLeaderboardSubmitted(true)
+      } else {
+        console.error('Failed to submit to leaderboard:', data.error)
+        alert('Failed to submit to leaderboard. Please try again.')
+      }
+    } catch (error) {
+      console.error('Error submitting to leaderboard:', error)
+      alert('Failed to submit to leaderboard. Please try again.')
+    } finally {
+      setSubmittingLeaderboard(false)
+    }
   }
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
-        <div className="text-xl text-gray-900 dark:text-white">Loading game...</div>
+        <div className="text-xl text-gray-900 dark:text-white">Loading today's puzzle...</div>
       </div>
     )
   }
@@ -288,7 +325,7 @@ export default function Home() {
             </p>
           )}
           <button
-            onClick={loadNewMovie}
+            onClick={loadDailyMovie}
             className="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-semibold touch-manipulation"
           >
             Try Again
@@ -305,7 +342,7 @@ export default function Home() {
           The Daily Danny Movie Game
         </h1>
 
-        {!submitted && movie && (
+        {gameState === 'playing' && movie && (
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 sm:p-8 relative">
             {/* Hints Used Counter - Top Right */}
             <div className="absolute top-4 right-4 text-sm font-semibold text-gray-600 dark:text-gray-400">
@@ -334,6 +371,13 @@ export default function Home() {
                 )}
               </div>
             </div>
+
+            {/* Wrong Message */}
+            {wrongMessage && (
+              <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                <p className="text-red-800 dark:text-red-200 font-semibold">{wrongMessage}</p>
+              </div>
+            )}
 
             {/* Hints Display */}
             {hintsShown.length > 0 && (
@@ -373,56 +417,122 @@ export default function Home() {
                   />
                   
                   {/* Autocomplete Suggestions */}
-                  {showSuggestions && (suggestions.length > 0 || loadingAutocomplete) && (
+                  {showSuggestions && suggestions.length > 0 && (
                     <div
                       ref={suggestionsRef}
                       className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-60 overflow-y-auto"
                     >
-                      {loadingAutocomplete ? (
-                        <div className="px-4 py-2 text-gray-500 dark:text-gray-400">Loading...</div>
-                      ) : (
-                        suggestions.map((suggestion, index) => (
-                          <button
-                            key={index}
-                            type="button"
-                            onClick={() => handleSuggestionClick(suggestion)}
-                            className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-600 last:border-b-0"
-                          >
-                            {suggestion}
-                          </button>
-                        ))
-                      )}
+                      {suggestions.map((suggestion, index) => (
+                        <button
+                          key={index}
+                          type="button"
+                          onClick={() => handleSuggestionClick(suggestion)}
+                          className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-600 last:border-b-0"
+                        >
+                          {suggestion}
+                        </button>
+                      ))}
                     </div>
                   )}
                 </div>
               </div>
 
-              <div className="flex gap-3">
-                <button
-                  type="submit"
-                  disabled={!userAnswer.trim()}
-                  className="flex-1 px-6 py-4 bg-blue-500 hover:bg-blue-600 active:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg font-semibold text-lg transition-colors touch-manipulation"
-                >
-                  Submit Answer
-                </button>
-                <button
-                  type="button"
-                  onClick={handleGetHint}
-                  disabled={hintsUsed >= 6 || submitted}
-                  className="px-6 py-4 bg-purple-500 hover:bg-purple-600 active:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg font-semibold text-lg transition-colors touch-manipulation whitespace-nowrap"
-                >
-                  Get a Hint
-                </button>
-              </div>
+              <button
+                type="submit"
+                className="w-full px-6 py-4 bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white rounded-lg font-semibold text-lg transition-colors touch-manipulation"
+              >
+                {userAnswer.trim() ? 'Submit Answer' : 'No Clue'}
+              </button>
             </form>
           </div>
         )}
-        {submitted && movie && (
+
+        {gameState === 'won' && movie && (
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 sm:p-8">
             {/* Result Message */}
             <div className="text-center mb-6">
-              <div className={`text-4xl sm:text-5xl font-bold mb-2 ${isCorrect ? 'text-green-600' : 'text-red-600'}`}>
-                {isCorrect ? '🎉 You Got It Right! 🎉' : '❌ You got it wrong!'}
+              <div className="text-4xl sm:text-5xl font-bold mb-2 text-green-600">
+                🎉 You Got It Right! 🎉
+              </div>
+              <div className="text-2xl sm:text-3xl font-semibold text-gray-700 dark:text-gray-300 mt-2">
+                In {hintsUsed} {hintsUsed === 1 ? 'Hint' : 'Hints'}!
+              </div>
+            </div>
+
+            {/* Movie Poster */}
+            {movie.poster && movie.poster !== 'N/A' ? (
+              <div className="flex justify-center mb-6">
+                <div className="relative w-48 sm:w-64 h-72 sm:h-96">
+                  <Image
+                    src={movie.poster}
+                    alt={movie.title || 'Movie poster'}
+                    fill
+                    className="object-cover rounded-lg shadow-lg"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="flex justify-center mb-6">
+                <div className="w-48 sm:w-64 h-72 sm:h-96 bg-gray-300 dark:bg-gray-600 rounded-lg flex items-center justify-center">
+                  <span className="text-gray-500 dark:text-gray-400">No Image</span>
+                </div>
+              </div>
+            )}
+
+            {/* Movie Title and Year */}
+            <div className="text-center mb-6">
+              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
+                {movie.title || 'Unknown Movie'}
+              </h2>
+              {movie.year && (
+                <p className="text-lg text-gray-600 dark:text-gray-400">
+                  {movie.year}
+                </p>
+              )}
+            </div>
+
+            {/* Leaderboard Submission */}
+            {!leaderboardSubmitted ? (
+              <form onSubmit={handleSubmitLeaderboard} className="space-y-4">
+                <div>
+                  <label htmlFor="player-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Enter your name for the leaderboard:
+                  </label>
+                  <input
+                    id="player-name"
+                    type="text"
+                    value={playerName}
+                    onChange={(e) => setPlayerName(e.target.value)}
+                    placeholder="Your name..."
+                    className="w-full px-4 py-3 text-lg border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                    required
+                    maxLength={50}
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={!playerName.trim() || submittingLeaderboard}
+                  className="w-full px-6 py-4 bg-green-500 hover:bg-green-600 active:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg font-semibold text-lg transition-colors touch-manipulation"
+                >
+                  {submittingLeaderboard ? 'Submitting...' : 'Submit to Leaderboard'}
+                </button>
+              </form>
+            ) : (
+              <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                <p className="text-green-800 dark:text-green-200 font-semibold">
+                  ✓ Submitted to leaderboard!
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {gameState === 'lost' && movie && (
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 sm:p-8">
+            {/* Result Message */}
+            <div className="text-center mb-6">
+              <div className="text-4xl sm:text-5xl font-bold mb-2 text-red-600">
+                ❌ You got it wrong!
               </div>
             </div>
 
@@ -458,21 +568,9 @@ export default function Home() {
               )}
             </div>
 
-            {/* Your Answer */}
-            <div className="text-center mb-6 p-4 bg-gray-100 dark:bg-gray-700 rounded-lg">
-              <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Your answer:</div>
-              <div className="text-lg font-semibold text-gray-900 dark:text-white">
-                {userAnswer || '(No answer)'}
-              </div>
-            </div>
-
-            {/* New Game Button */}
-            <button
-              onClick={handleNewGame}
-              className="w-full px-6 py-4 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white rounded-lg font-semibold text-lg transition-colors touch-manipulation"
-            >
-              Play Again
-            </button>
+            <p className="text-center text-gray-600 dark:text-gray-400 mb-6">
+              Better luck tomorrow! Come back for a new daily puzzle.
+            </p>
           </div>
         )}
       </div>
