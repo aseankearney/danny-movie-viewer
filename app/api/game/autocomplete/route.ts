@@ -26,57 +26,49 @@ export async function GET(request: Request) {
     const suggestions: string[] = []
     const seenTitles = new Set<string>()
 
-    // For short queries (1-2 chars), search multiple variations
-    const searchQueries: string[] = [query]
-    
-    if (query.length <= 2) {
-      // Add variations for short queries to get more results
-      searchQueries.push(`the ${query}`, `a ${query}`, `an ${query}`)
-    }
+    // Search OMDb directly with the user's query
+    // Search multiple pages to get comprehensive results
+    for (let page = 1; page <= 3; page++) {
+      if (suggestions.length >= 50) break
 
-    // Search each query variation
-    for (const searchQuery of searchQueries) {
-      if (suggestions.length >= 100) break
+      try {
+        const titles = await searchMoviesByTitle(query, page)
+        
+        if (titles.length === 0) break
 
-      // Search multiple pages to get comprehensive results
-      for (let page = 1; page <= 5; page++) {
-        if (suggestions.length >= 100) break
-
-        try {
-          const titles = await searchMoviesByTitle(searchQuery, page)
-          
-          if (titles.length === 0) break
-
-          for (const title of titles) {
-            if (!seenTitles.has(title.toLowerCase())) {
-              // Check if title matches query (case insensitive, partial match)
-              const titleLower = title.toLowerCase()
-              const queryLower = query.toLowerCase()
-              if (titleLower.includes(queryLower)) {
+        const queryLower = query.toLowerCase().trim()
+        
+        for (const title of titles) {
+          if (!seenTitles.has(title.toLowerCase())) {
+            const titleLower = title.toLowerCase()
+            
+            // Only include titles that actually contain the query
+            // Prioritize titles that start with the query
+            if (titleLower.includes(queryLower)) {
+              // Filter out titles that start with numbers unless the query is a number
+              const startsWithNumber = /^\d/.test(title)
+              const queryIsNumber = /^\d/.test(query)
+              
+              if (!startsWithNumber || queryIsNumber) {
                 suggestions.push(title)
                 seenTitles.add(title.toLowerCase())
-                if (suggestions.length >= 100) break
+                if (suggestions.length >= 50) break
               }
             }
           }
-
-          // If we got fewer results than expected, we've probably reached the end
-          if (titles.length < 10) break
-        } catch (error) {
-          console.error(`Error searching page ${page} for "${searchQuery}":`, error)
-          // Continue to next page or break if first page fails
-          if (page === 1) break
         }
 
-        // Small delay between pages to avoid rate limiting
-        if (page < 5 && suggestions.length < 100) {
-          await new Promise(resolve => setTimeout(resolve, 150))
-        }
+        // If we got fewer results than expected, we've probably reached the end
+        if (titles.length < 10) break
+      } catch (error) {
+        console.error(`Error searching page ${page} for "${query}":`, error)
+        // Continue to next page or break if first page fails
+        if (page === 1) break
       }
 
-      // Small delay between different search queries
-      if (searchQueries.indexOf(searchQuery) < searchQueries.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 150))
+      // Small delay between pages to avoid rate limiting
+      if (page < 3 && suggestions.length < 50) {
+        await new Promise(resolve => setTimeout(resolve, 200))
       }
     }
 
@@ -99,7 +91,7 @@ export async function GET(request: Request) {
       return a.length - b.length
     })
 
-    return NextResponse.json({ suggestions: sorted.slice(0, 100) })
+    return NextResponse.json({ suggestions: sorted.slice(0, 50) })
   } catch (error) {
     console.error('Error in autocomplete:', error)
     return NextResponse.json({ suggestions: [] })

@@ -99,61 +99,7 @@ export default function Home() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  // Show suggestions when input is focused and empty
-  useEffect(() => {
-    if (inputRef.current && gameState === 'playing' && userAnswer.length === 0) {
-      const handleFocus = async () => {
-        // Load some initial suggestions from OMDb by searching common letters
-        setLoadingAutocomplete(true)
-        setShowSuggestions(true)
-        
-        try {
-          // Get suggestions for a few common letters
-          const letters = ['A', 'T', 'T', 'M', 'S'] // Common starting letters
-          const allInitialSuggestions: string[] = []
-          const seenTitles = new Set<string>()
-          
-          for (const letter of letters.slice(0, 3)) { // Limit to 3 letters to avoid too many requests
-            try {
-              const response = await fetch(`/api/game/autocomplete?letter=${letter}`)
-              const data = await response.json()
-              if (data.suggestions && Array.isArray(data.suggestions)) {
-                for (const title of data.suggestions) {
-                  if (!seenTitles.has(title.toLowerCase())) {
-                    allInitialSuggestions.push(title)
-                    seenTitles.add(title.toLowerCase())
-                  }
-                }
-              }
-            } catch (error) {
-              console.error(`Error loading initial suggestions for letter ${letter}:`, error)
-            }
-          }
-          
-          if (allInitialSuggestions.length > 0) {
-            setSuggestions(allInitialSuggestions.slice(0, 50))
-          } else if (allMovieTitles.length > 0) {
-            // Fallback to pre-loaded list
-            setSuggestions(allMovieTitles.slice(0, 50))
-          }
-        } catch (error) {
-          console.error('Error loading initial suggestions:', error)
-          // Fallback to pre-loaded list
-          if (allMovieTitles.length > 0) {
-            setSuggestions(allMovieTitles.slice(0, 50))
-          }
-        } finally {
-          setLoadingAutocomplete(false)
-        }
-      }
-      
-      const input = inputRef.current
-      input.addEventListener('focus', handleFocus)
-      return () => {
-        input.removeEventListener('focus', handleFocus)
-      }
-    }
-  }, [allMovieTitles, gameState, userAnswer.length])
+  // Don't show suggestions when input is focused and empty - only show when user types
 
   const loadDailyMovie = async () => {
     setLoading(true)
@@ -227,10 +173,14 @@ export default function Home() {
           // Fallback: If OMDb returns few results, also check pre-loaded list
           if (suggestions.length < 10 && allMovieTitles.length > 0) {
             const valueLower = value.toLowerCase()
-            const loadedMatches = allMovieTitles.filter(title => 
-              title.toLowerCase().includes(valueLower) &&
-              !suggestions.some(s => s.toLowerCase() === title.toLowerCase())
-            )
+            const queryIsNumber = /^\d/.test(value)
+            const loadedMatches = allMovieTitles.filter(title => {
+              const titleLower = title.toLowerCase()
+              const startsWithNumber = /^\d/.test(title)
+              return titleLower.includes(valueLower) &&
+                     !suggestions.some(s => s.toLowerCase() === title.toLowerCase()) &&
+                     (!startsWithNumber || queryIsNumber)
+            })
             suggestions = [...suggestions, ...loadedMatches]
           }
           
@@ -242,18 +192,21 @@ export default function Home() {
             suggestions = [movie.title, ...suggestions]
           }
           
-          // Remove duplicates and limit to 100 suggestions
+          // Remove duplicates and limit to 50 suggestions
           const uniqueSuggestions = Array.from(new Set(suggestions))
-          setSuggestions(uniqueSuggestions.slice(0, 100))
+          setSuggestions(uniqueSuggestions.slice(0, 50))
           setShowSuggestions(uniqueSuggestions.length > 0)
         } catch (error) {
           console.error('Error fetching autocomplete from OMDb:', error)
           // Fallback to pre-loaded list if OMDb fails
           const valueLower = value.toLowerCase()
-          const loadedMatches = allMovieTitles.filter(title => 
-            title.toLowerCase().includes(valueLower)
-          )
-          setSuggestions(loadedMatches.slice(0, 100))
+          const queryIsNumber = /^\d/.test(value)
+          const loadedMatches = allMovieTitles.filter(title => {
+            const titleLower = title.toLowerCase()
+            const startsWithNumber = /^\d/.test(title)
+            return titleLower.includes(valueLower) && (!startsWithNumber || queryIsNumber)
+          })
+          setSuggestions(loadedMatches.slice(0, 50))
           setShowSuggestions(loadedMatches.length > 0)
         } finally {
           setLoadingAutocomplete(false)
