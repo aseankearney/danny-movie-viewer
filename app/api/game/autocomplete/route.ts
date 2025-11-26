@@ -30,21 +30,32 @@ export async function GET(request: Request) {
     for (let page = 1; page <= 3; page++) {
       if (suggestions.length >= 50) break
 
-      const titles = await searchMoviesByTitle(query, page)
-      
-      for (const title of titles) {
-        if (!seenTitles.has(title) && title.toLowerCase().includes(query.toLowerCase())) {
-          suggestions.push(title)
-          seenTitles.add(title)
-          if (suggestions.length >= 50) break
+      try {
+        const titles = await searchMoviesByTitle(query, page)
+        
+        for (const title of titles) {
+          if (!seenTitles.has(title)) {
+            // Check if title matches query (case insensitive, partial match)
+            const titleLower = title.toLowerCase()
+            const queryLower = query.toLowerCase()
+            if (titleLower.includes(queryLower)) {
+              suggestions.push(title)
+              seenTitles.add(title)
+              if (suggestions.length >= 50) break
+            }
+          }
         }
+
+        // If we got fewer results than expected, we've probably reached the end
+        if (titles.length < 10) break
+      } catch (error) {
+        console.error(`Error searching page ${page}:`, error)
+        // Continue to next page or break if first page fails
+        if (page === 1) break
       }
 
-      // If we got fewer results than expected, we've probably reached the end
-      if (titles.length < 10) break
-
       // Small delay between pages to avoid rate limiting
-      if (page < 3) {
+      if (page < 3 && suggestions.length < 50) {
         await new Promise(resolve => setTimeout(resolve, 200))
       }
     }

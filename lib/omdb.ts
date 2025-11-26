@@ -75,7 +75,7 @@ export async function searchMoviesByTitle(query: string, page: number = 1): Prom
     const response = await fetch(
       `${OMDB_BASE_URL}/?apikey=${OMDB_API_KEY}&s=${encodeURIComponent(query)}&type=movie&page=${page}`,
       {
-        next: { revalidate: 3600 }, // Cache for 1 hour
+        cache: 'no-store', // Don't cache in API routes
       }
     )
 
