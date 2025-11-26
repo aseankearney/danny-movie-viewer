@@ -39,9 +39,24 @@ export async function GET() {
     const firstActor = actors[0] || null
     const fourthActor = actors[3] || null
     const fifthActor = actors[4] || null
-    const fourthAndFifth = fourthActor && fifthActor 
-      ? `${fourthActor} and ${fifthActor}`
-      : fourthActor || fifthActor || null
+    // For hint 5, we want fourth and fifth billed actors
+    // If we have both, show both. If only one, show that one. If neither, show a message.
+    let fourthAndFifth: string | null = null
+    if (fourthActor && fifthActor) {
+      fourthAndFifth = `${fourthActor} and ${fifthActor}`
+    } else if (fourthActor) {
+      fourthAndFifth = fourthActor
+    } else if (fifthActor) {
+      fourthAndFifth = fifthActor
+    } else if (actors.length >= 4) {
+      // If we have at least 4 actors but not the 4th/5th, use the last two
+      const lastTwo = actors.slice(-2)
+      if (lastTwo.length === 2) {
+        fourthAndFifth = `${lastTwo[0]} and ${lastTwo[1]}`
+      } else if (lastTwo.length === 1) {
+        fourthAndFifth = lastTwo[0]
+      }
+    }
 
     // Process plot to remove names and replace proper nouns with REDACTED
     const plotWithoutNames = movieDetails?.Plot

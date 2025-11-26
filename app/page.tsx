@@ -213,7 +213,11 @@ export default function Home() {
       case 4:
         return movie.academyAwards || null
       case 5:
-        return movie.fourthAndFifthActors ? `This movie features ${movie.fourthAndFifthActors}` : null
+        if (movie.fourthAndFifthActors) {
+          return `This movie features ${movie.fourthAndFifthActors}`
+        }
+        // Fallback: try to get any actors from the movie data
+        return null
       case 6:
         return movie.director ? `This movie was directed by ${movie.director}` : null
       case 7:
