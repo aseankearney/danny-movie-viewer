@@ -154,10 +154,10 @@ export default function Home() {
     
     if (value.length >= 1) {
       setShowSuggestions(true)
+      setLoadingAutocomplete(true) // Show loading immediately
       
       // Debounce the autocomplete search to avoid too many API calls
       autocompleteTimeoutRef.current = setTimeout(async () => {
-        setLoadingAutocomplete(true)
         
         try {
           // Real-time OMDb search - simplified and direct
