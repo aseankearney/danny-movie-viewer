@@ -44,27 +44,42 @@ export default function Home() {
   const [submittingLeaderboard, setSubmittingLeaderboard] = useState(false)
   const [leaderboardSubmitted, setLeaderboardSubmitted] = useState(false)
   const [allMovieTitles, setAllMovieTitles] = useState<string[]>([])
-  const [loadingTitles, setLoadingTitles] = useState(true)
+  const [loadingTitles, setLoadingTitles] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const suggestionsRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    // Pre-load all movie titles for autocomplete
-    const loadTitles = async () => {
-      try {
-        const response = await fetch('/api/game/titles')
-        const data = await response.json()
-        if (data.titles && Array.isArray(data.titles)) {
-          setAllMovieTitles(data.titles)
+    // Pre-load movie titles for each letter of the alphabet
+    const loadInitialTitles = async () => {
+      setLoadingTitles(true)
+      const titles: string[] = []
+      const seenTitles = new Set<string>()
+
+      // Load 10 movies for each letter
+      for (const letter of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ') {
+        try {
+          const response = await fetch(`/api/game/autocomplete?letter=${letter}`)
+          const data = await response.json()
+          if (data.suggestions && Array.isArray(data.suggestions)) {
+            for (const title of data.suggestions) {
+              if (!seenTitles.has(title)) {
+                titles.push(title)
+                seenTitles.add(title)
+              }
+            }
+          }
+          // Small delay to avoid rate limiting
+          await new Promise(resolve => setTimeout(resolve, 100))
+        } catch (error) {
+          console.error(`Error loading titles for letter ${letter}:`, error)
         }
-      } catch (error) {
-        console.error('Error loading movie titles:', error)
-      } finally {
-        setLoadingTitles(false)
       }
+
+      setAllMovieTitles(titles)
+      setLoadingTitles(false)
     }
     
-    loadTitles()
+    loadInitialTitles()
     loadDailyMovie()
   }, [])
 
@@ -127,64 +142,45 @@ export default function Home() {
     }
   }
 
-  const handleInputChange = (value: string) => {
+  const handleInputChange = async (value: string) => {
     setUserAnswer(value)
     setWrongMessage(null) // Clear wrong message when typing
     
-    if (value.length >= 1 && allMovieTitles.length > 0) {
-      const query = value.toLowerCase().trim()
+    if (value.length >= 1) {
+      setLoadingAutocomplete(true)
+      setShowSuggestions(true)
       
-      // Filter titles that match the query
-      const matchingTitles = allMovieTitles.filter((title) =>
-        title.toLowerCase().includes(query)
-      )
-      
-      // Ensure the correct movie is included if it matches
-      let finalSuggestions = matchingTitles
-      if (movie?.title && !matchingTitles.includes(movie.title) && 
-          movie.title.toLowerCase().includes(query)) {
-        finalSuggestions = [movie.title, ...matchingTitles]
-      }
-      
-      // Create a diverse set of suggestions
-      const organizedSuggestions: string[] = []
-      const correctTitle = movie?.title
-      
-      // Add correct title first if it matches
-      if (correctTitle && correctTitle.toLowerCase().includes(query) && 
-          !organizedSuggestions.includes(correctTitle)) {
-        organizedSuggestions.push(correctTitle)
-      }
-      
-      // Group by first letter and take up to 10 per letter
-      const byLetter: Record<string, string[]> = {}
-      for (const title of finalSuggestions) {
-        if (title === correctTitle && organizedSuggestions.includes(title)) continue
+      try {
+        // Search OMDb for movies matching the query
+        const response = await fetch(`/api/game/autocomplete?q=${encodeURIComponent(value)}`)
+        const data = await response.json()
         
-        const firstLetter = title.charAt(0).toUpperCase()
-        if (!byLetter[firstLetter]) {
-          byLetter[firstLetter] = []
+        let suggestions = data.suggestions || []
+        
+        // Ensure the correct movie is included if it matches
+        if (movie?.title && 
+            movie.title.toLowerCase().includes(value.toLowerCase()) && 
+            !suggestions.includes(movie.title)) {
+          suggestions = [movie.title, ...suggestions]
         }
-        if (byLetter[firstLetter].length < 10) {
-          byLetter[firstLetter].push(title)
-        }
+        
+        setSuggestions(suggestions.slice(0, 50))
+        setShowSuggestions(suggestions.length > 0)
+      } catch (error) {
+        console.error('Error fetching autocomplete:', error)
+        setSuggestions([])
+      } finally {
+        setLoadingAutocomplete(false)
       }
-      
-      // Add titles from each letter (up to 10 per letter)
-      for (const letter of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ') {
-        if (byLetter[letter]) {
-          organizedSuggestions.push(...byLetter[letter].slice(0, 10))
-        }
-      }
-      
-      // Limit total suggestions to 50 for performance
-      const limitedSuggestions = organizedSuggestions.slice(0, 50)
-      
-      setSuggestions(limitedSuggestions)
-      setShowSuggestions(limitedSuggestions.length > 0)
     } else if (value.length === 0) {
-      setSuggestions([])
-      setShowSuggestions(false)
+      // Show initial suggestions from pre-loaded titles
+      if (allMovieTitles.length > 0) {
+        setSuggestions(allMovieTitles.slice(0, 50))
+        setShowSuggestions(true)
+      } else {
+        setSuggestions([])
+        setShowSuggestions(false)
+      }
     }
   }
 

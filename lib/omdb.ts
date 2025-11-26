@@ -19,6 +19,19 @@ export interface OMDbMovieResponse {
   Error?: string
 }
 
+export interface OMDbSearchResponse {
+  Search?: Array<{
+    Title: string
+    Year: string
+    imdbID: string
+    Type: string
+    Poster: string
+  }>
+  totalResults?: string
+  Response: string
+  Error?: string
+}
+
 export async function getMovieByIMDbId(imdbId: string): Promise<OMDbMovieResponse | null> {
   if (!OMDB_API_KEY) {
     console.warn('OMDB_API_KEY is not set')
@@ -46,5 +59,78 @@ export async function getMovieByIMDbId(imdbId: string): Promise<OMDbMovieRespons
     console.error(`Error fetching movie by IMDb ID ${imdbId}:`, error)
     return null
   }
+}
+
+export async function searchMoviesByTitle(query: string, page: number = 1): Promise<string[]> {
+  if (!OMDB_API_KEY) {
+    console.warn('OMDB_API_KEY is not set')
+    return []
+  }
+
+  if (!query || query.trim().length < 1) {
+    return []
+  }
+
+  try {
+    const response = await fetch(
+      `${OMDB_BASE_URL}/?apikey=${OMDB_API_KEY}&s=${encodeURIComponent(query)}&type=movie&page=${page}`,
+      {
+        next: { revalidate: 3600 }, // Cache for 1 hour
+      }
+    )
+
+    if (!response.ok) {
+      throw new Error(`OMDb API error: ${response.statusText}`)
+    }
+
+    const data: OMDbSearchResponse = await response.json()
+    if (data.Response === 'False' || !data.Search) {
+      return []
+    }
+
+    // Extract unique titles
+    const titles = data.Search.map(movie => movie.Title)
+    return Array.from(new Set(titles)) // Remove duplicates
+  } catch (error) {
+    console.error(`Error searching movies by title "${query}":`, error)
+    return []
+  }
+}
+
+export async function getMoviesByFirstLetter(letter: string, limit: number = 10): Promise<string[]> {
+  if (!letter || letter.length !== 1) {
+    return []
+  }
+
+  // Search for movies starting with the letter
+  // OMDb doesn't have a direct "starts with" search, so we'll search for common patterns
+  const searchTerms = [
+    `${letter}`,
+    `the ${letter}`,
+    `a ${letter}`,
+    `an ${letter}`,
+  ]
+
+  const allTitles: string[] = []
+  const seenTitles = new Set<string>()
+
+  for (const term of searchTerms) {
+    if (allTitles.length >= limit) break
+
+    const titles = await searchMoviesByTitle(term, 1)
+    for (const title of titles) {
+      // Check if title starts with the letter (case insensitive)
+      if (title.charAt(0).toUpperCase() === letter.toUpperCase() && !seenTitles.has(title)) {
+        allTitles.push(title)
+        seenTitles.add(title)
+        if (allTitles.length >= limit) break
+      }
+    }
+
+    // Small delay to avoid rate limiting
+    await new Promise(resolve => setTimeout(resolve, 200))
+  }
+
+  return allTitles.slice(0, limit)
 }
 

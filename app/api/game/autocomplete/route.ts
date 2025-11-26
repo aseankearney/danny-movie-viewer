@@ -1,64 +1,57 @@
 import { NextResponse } from 'next/server'
-import { getAllMovieIds } from '@/lib/db'
-import { getMovieByIMDbId } from '@/lib/omdb'
+import { searchMoviesByTitle, getMoviesByFirstLetter } from '@/lib/omdb'
 
-// Cache for movie titles
-const movieTitleCache = new Map<string, string>()
-
-// This endpoint is a fallback for when client-side autocomplete hasn't loaded titles yet
 export async function GET(request: Request) {
   try {
-    if (!process.env.DATABASE_URL) {
+    if (!process.env.OMDB_API_KEY) {
       return NextResponse.json({ suggestions: [] })
     }
 
     const { searchParams } = new URL(request.url)
-    const query = searchParams.get('q')?.toLowerCase().trim() || ''
+    const query = searchParams.get('q')?.trim() || ''
+    const letter = searchParams.get('letter') // For pre-populating by letter
 
-    if (query.length < 2) {
+    // If requesting by letter (for initial load)
+    if (letter && letter.length === 1) {
+      const titles = await getMoviesByFirstLetter(letter.toUpperCase(), 10)
+      return NextResponse.json({ suggestions: titles })
+    }
+
+    // If query is too short, return empty
+    if (query.length < 1) {
       return NextResponse.json({ suggestions: [] })
     }
 
-    // Get movie IDs and check cache
-    const movieIds = await getAllMovieIds()
-    const matchingTitles: string[] = []
-    
-    // Check cache first
-    for (const movieId of movieIds.slice(0, 100)) {
-      if (movieTitleCache.has(movieId)) {
-        const title = movieTitleCache.get(movieId)!
-        if (title.toLowerCase().includes(query) && !matchingTitles.includes(title)) {
-          matchingTitles.push(title)
-          if (matchingTitles.length >= 20) break
-        }
-      }
-    }
+    // Search OMDb for movies matching the query
+    const suggestions: string[] = []
+    const seenTitles = new Set<string>()
 
-    // If we need more, fetch some uncached ones
-    if (matchingTitles.length < 20) {
-      const uncachedIds = movieIds.filter(id => !movieTitleCache.has(id) && id.startsWith('tt')).slice(0, 20)
+    // Search multiple pages to get more results
+    for (let page = 1; page <= 3; page++) {
+      if (suggestions.length >= 50) break
+
+      const titles = await searchMoviesByTitle(query, page)
       
-      for (const movieId of uncachedIds) {
-        if (matchingTitles.length >= 20) break
-        
-        try {
-          const movie = await getMovieByIMDbId(movieId)
-          if (movie && movie.Title) {
-            movieTitleCache.set(movieId, movie.Title)
-            if (movie.Title.toLowerCase().includes(query) && !matchingTitles.includes(movie.Title)) {
-              matchingTitles.push(movie.Title)
-            }
-          }
-        } catch (error) {
-          // Skip on error
+      for (const title of titles) {
+        if (!seenTitles.has(title) && title.toLowerCase().includes(query.toLowerCase())) {
+          suggestions.push(title)
+          seenTitles.add(title)
+          if (suggestions.length >= 50) break
         }
+      }
+
+      // If we got fewer results than expected, we've probably reached the end
+      if (titles.length < 10) break
+
+      // Small delay between pages to avoid rate limiting
+      if (page < 3) {
+        await new Promise(resolve => setTimeout(resolve, 200))
       }
     }
 
-    return NextResponse.json({ suggestions: matchingTitles.slice(0, 20) })
+    return NextResponse.json({ suggestions: suggestions.slice(0, 50) })
   } catch (error) {
     console.error('Error in autocomplete:', error)
     return NextResponse.json({ suggestions: [] })
   }
 }
-
