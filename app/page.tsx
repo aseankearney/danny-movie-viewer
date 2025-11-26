@@ -3,6 +3,11 @@
 import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
 
+interface PlotSegment {
+  text: string
+  isRedacted: boolean
+}
+
 interface GameMovie {
   movieId: string | number
   status: 'Seen-Liked' | 'Seen-Hated'
@@ -17,6 +22,7 @@ interface GameMovie {
   firstActor: string | null
   fourthAndFifthActors: string | null
   plotWithoutNames: string | null
+  plotWithRedacted: PlotSegment[] | null
   academyAwards: string | null
   puzzleDate: string
 }
@@ -210,7 +216,8 @@ export default function Home() {
       case 4:
         return movie.runtime ? `This movie's runtime is: ${movie.runtime}` : null
       case 5:
-        return movie.plotWithoutNames || null
+        // Return special marker for plot hint (needs special rendering)
+        return movie.plotWithRedacted ? '__PLOT_HINT__' : null
       case 6:
         return movie.fourthAndFifthActors ? `This movie features ${movie.fourthAndFifthActors}` : null
       case 7:
@@ -241,7 +248,7 @@ export default function Home() {
       const nextHintLevel = hintsUsed + 1
       setHintsUsed(nextHintLevel)
       setHintsShown([...hintsShown, nextHintLevel])
-      setWrongMessage('No clue used. Here\'s a hint:')
+      setWrongMessage(null) // Remove the "No clue used" message
       return
     }
 
@@ -390,7 +397,30 @@ export default function Home() {
               <div className="mb-8 space-y-4">
                 {hintsShown.map((hintLevel) => {
                   const hintText = getHintText(hintLevel)
-                  return hintText ? (
+                  if (!hintText) return null
+                  
+                  // Special handling for plot hint (hint 5)
+                  if (hintText === '__PLOT_HINT__' && movie.plotWithRedacted) {
+                    return (
+                      <div
+                        key={hintLevel}
+                        className="text-center"
+                      >
+                        <div className="text-2xl sm:text-3xl font-semibold text-gray-900 dark:text-white">
+                          {movie.plotWithRedacted.map((segment, idx) => (
+                            <span
+                              key={idx}
+                              className={segment.isRedacted ? 'text-red-600 dark:text-red-400' : ''}
+                            >
+                              {segment.text}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  }
+                  
+                  return (
                     <div
                       key={hintLevel}
                       className="text-center"
@@ -399,7 +429,7 @@ export default function Home() {
                         {hintText}
                       </div>
                     </div>
-                  ) : null
+                  )
                 })}
               </div>
             )}

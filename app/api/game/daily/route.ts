@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getDailyMovie } from '@/lib/db'
 import { getMovieByIMDbId } from '@/lib/omdb'
-import { removeNamesFromPlot, extractAcademyAwards } from '@/lib/plotUtils'
+import { removeNamesFromPlot, extractAcademyAwards, replaceProperNounsWithRedacted } from '@/lib/plotUtils'
 
 export async function GET() {
   try {
@@ -43,9 +43,14 @@ export async function GET() {
       ? `${fourthActor} and ${fifthActor}`
       : fourthActor || fifthActor || null
 
-    // Process plot to remove names
+    // Process plot to remove names and replace proper nouns with REDACTED
     const plotWithoutNames = movieDetails?.Plot
       ? removeNamesFromPlot(movieDetails.Plot, movieDetails.Actors || null, movieDetails.Director || null)
+      : null
+    
+    // Create plot with proper nouns replaced (for hint display)
+    const plotWithRedacted = plotWithoutNames
+      ? replaceProperNounsWithRedacted(plotWithoutNames)
       : null
 
     // Extract Academy Awards
@@ -65,6 +70,7 @@ export async function GET() {
       firstActor: firstActor,
       fourthAndFifthActors: fourthAndFifth,
       plotWithoutNames: plotWithoutNames,
+      plotWithRedacted: plotWithRedacted,
       academyAwards: academyAwards,
       puzzleDate: today,
     })

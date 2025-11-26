@@ -41,6 +41,111 @@ export function removeNamesFromPlot(
 }
 
 /**
+ * Replaces proper nouns with REDACTED markers
+ * Returns an array of text parts with proper nouns marked for red text rendering
+ */
+export function replaceProperNounsWithRedacted(plot: string): Array<{ text: string; isRedacted: boolean }> {
+  if (!plot) return []
+
+  // Common words that start sentences but aren't proper nouns
+  const commonWords = new Set(['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'from', 'as', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must', 'can', 'this', 'that', 'these', 'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they'])
+
+  // Split by sentences first
+  const sentences = plot.split(/([.!?]+[\s]*)/)
+  const result: Array<{ text: string; isRedacted: boolean }> = []
+
+  for (let i = 0; i < sentences.length; i++) {
+    const sentence = sentences[i]
+    if (!sentence.trim()) {
+      result.push({ text: sentence, isRedacted: false })
+      continue
+    }
+
+    // Check if this is punctuation
+    if (/^[.!?]+[\s]*$/.test(sentence)) {
+      result.push({ text: sentence, isRedacted: false })
+      continue
+    }
+
+    // Split sentence into words
+    const words = sentence.match(/\S+|\s+/g) || []
+    let currentSegment = ''
+    let isCurrentRedacted = false
+    let isFirstWord = true
+
+    for (let j = 0; j < words.length; j++) {
+      const word = words[j]
+      
+      // Preserve whitespace
+      if (/^\s+$/.test(word)) {
+        currentSegment += word
+        continue
+      }
+
+      // Extract word without punctuation for checking
+      const wordMatch = word.match(/^([^.,!?;:()\[\]{}'"]+)(.*)$/)
+      const baseWord = wordMatch ? wordMatch[1] : word
+      const punctuation = wordMatch ? wordMatch[2] : ''
+      const lowerWord = baseWord.toLowerCase()
+
+      // Check if it's a proper noun: capitalized word that's not at start of sentence (unless it's a common word)
+      const isCapitalized = /^[A-Z]/.test(baseWord)
+      const isProperNoun = isCapitalized && (!isFirstWord || (baseWord.length > 1 && !commonWords.has(lowerWord)))
+
+      if (isProperNoun) {
+        // Start or continue redacted segment
+        if (!isCurrentRedacted) {
+          if (currentSegment) {
+            result.push({ text: currentSegment, isRedacted: false })
+            currentSegment = ''
+          }
+          isCurrentRedacted = true
+        }
+        // Replace the word with REDACTED (only once per redacted segment)
+        if (!currentSegment.includes('REDACTED')) {
+          currentSegment = 'REDACTED' + punctuation
+        } else {
+          // Already have REDACTED, just add punctuation if needed
+          if (punctuation && !currentSegment.includes(punctuation)) {
+            currentSegment += punctuation
+          }
+        }
+      } else {
+        // Not a proper noun
+        if (isCurrentRedacted) {
+          // End redacted segment
+          if (currentSegment) {
+            result.push({ text: currentSegment, isRedacted: true })
+            currentSegment = ''
+          }
+          isCurrentRedacted = false
+        }
+        currentSegment += word
+      }
+
+      // Check if this word ends the sentence
+      if (/[.!?]/.test(word)) {
+        isFirstWord = true
+      } else if (word.trim()) {
+        isFirstWord = false
+      }
+    }
+
+    // Add remaining segment
+    if (currentSegment) {
+      result.push({ text: currentSegment, isRedacted: isCurrentRedacted })
+    }
+  }
+
+  // If no proper nouns found, return the original text
+  if (result.every(seg => !seg.isRedacted)) {
+    return [{ text: plot, isRedacted: false }]
+  }
+
+  return result
+}
+
+/**
  * Extracts Academy Award information from Awards string
  */
 export function extractAcademyAwards(awards: string | null): string | null {
