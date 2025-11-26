@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (typeof hintsUsed !== 'number' || hintsUsed < 0 || hintsUsed > 6) {
+    if (typeof hintsUsed !== 'number' || hintsUsed < 0 || hintsUsed > 8) {
       return NextResponse.json(
         { error: 'Invalid hints used value' },
         { status: 400 }
