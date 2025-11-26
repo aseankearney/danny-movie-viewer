@@ -202,7 +202,7 @@ export default function Home() {
         } finally {
           setLoadingAutocomplete(false)
         }
-      }, value.length <= 2 ? 500 : 300) // Longer delay for short queries
+      }, 250) // Debounce delay
     } else if (value.length === 0) {
       // Show initial suggestions - try to get some popular movies by letter
       setShowSuggestions(false)
