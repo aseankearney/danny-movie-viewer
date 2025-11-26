@@ -160,7 +160,7 @@ export default function Home() {
         setLoadingAutocomplete(true)
         
         try {
-          // Primary source: Real-time OMDb search
+          // Real-time OMDb search - simplified and direct
           const response = await fetch(`/api/game/autocomplete?q=${encodeURIComponent(value)}`)
           const data = await response.json()
           
@@ -168,20 +168,6 @@ export default function Home() {
           
           if (data.suggestions && Array.isArray(data.suggestions)) {
             suggestions = data.suggestions
-          }
-          
-          // Fallback: If OMDb returns few results, also check pre-loaded list
-          if (suggestions.length < 10 && allMovieTitles.length > 0) {
-            const valueLower = value.toLowerCase()
-            const queryIsNumber = /^\d/.test(value)
-            const loadedMatches = allMovieTitles.filter(title => {
-              const titleLower = title.toLowerCase()
-              const startsWithNumber = /^\d/.test(title)
-              return titleLower.includes(valueLower) &&
-                     !suggestions.some(s => s.toLowerCase() === title.toLowerCase()) &&
-                     (!startsWithNumber || queryIsNumber)
-            })
-            suggestions = [...suggestions, ...loadedMatches]
           }
           
           // Ensure the correct movie is included if it matches
@@ -192,26 +178,18 @@ export default function Home() {
             suggestions = [movie.title, ...suggestions]
           }
           
-          // Remove duplicates and limit to 50 suggestions
+          // Remove duplicates
           const uniqueSuggestions = Array.from(new Set(suggestions))
-          setSuggestions(uniqueSuggestions.slice(0, 50))
+          setSuggestions(uniqueSuggestions)
           setShowSuggestions(uniqueSuggestions.length > 0)
         } catch (error) {
           console.error('Error fetching autocomplete from OMDb:', error)
-          // Fallback to pre-loaded list if OMDb fails
-          const valueLower = value.toLowerCase()
-          const queryIsNumber = /^\d/.test(value)
-          const loadedMatches = allMovieTitles.filter(title => {
-            const titleLower = title.toLowerCase()
-            const startsWithNumber = /^\d/.test(title)
-            return titleLower.includes(valueLower) && (!startsWithNumber || queryIsNumber)
-          })
-          setSuggestions(loadedMatches.slice(0, 50))
-          setShowSuggestions(loadedMatches.length > 0)
+          setSuggestions([])
+          setShowSuggestions(false)
         } finally {
           setLoadingAutocomplete(false)
         }
-      }, value.length <= 2 ? 400 : 300) // Longer delay for short queries
+      }, value.length <= 2 ? 500 : 300) // Longer delay for short queries
     } else if (value.length === 0) {
       // Show initial suggestions - try to get some popular movies by letter
       setShowSuggestions(false)
