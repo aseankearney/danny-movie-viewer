@@ -202,7 +202,6 @@ export default function Home() {
       }
     }
   }
-  }
 
   const handleSuggestionClick = (suggestion: string) => {
     setUserAnswer(suggestion)
