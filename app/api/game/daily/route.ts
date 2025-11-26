@@ -36,6 +36,24 @@ export async function GET() {
     
     if (movieId.startsWith('tt')) {
       movieDetails = await getMovieByIMDbId(movieId)
+      
+      // If we couldn't fetch movie details, return an error
+      if (!movieDetails || !movieDetails.Title) {
+        console.error(`Failed to fetch movie details for ${movieId}`)
+        return NextResponse.json(
+          { 
+            error: `Failed to fetch movie details for ${movieId}. The movie may not exist in OMDb.` 
+          },
+          { status: 404 }
+        )
+      }
+    } else {
+      return NextResponse.json(
+        { 
+          error: `Invalid movie ID: ${movieId}. Movie IDs must be valid IMDb IDs (starting with 'tt').` 
+        },
+        { status: 400 }
+      )
     }
 
     // Parse actors to get first, fourth, and fifth billed

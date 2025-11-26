@@ -124,6 +124,19 @@ export async function getDailyMovie(date: string): Promise<MovieStatus | null> {
       return null
     }
     
+    // Filter to only include movies with valid IMDb IDs (starting with 'tt')
+    const validMovies = allMovies.filter(movie => {
+      const movieId = String(movie.movie_id)
+      return movieId.startsWith('tt') && movieId.length > 2
+    })
+    
+    console.log(`Found ${validMovies.length} valid movies (with IMDb IDs) out of ${allMovies.length} total`)
+    
+    if (validMovies.length === 0) {
+      console.log('No valid movies with IMDb IDs found')
+      return null
+    }
+    
     // Use date string to generate consistent index
     // Simple hash of date string
     let hash = 0
@@ -134,8 +147,8 @@ export async function getDailyMovie(date: string): Promise<MovieStatus | null> {
     }
     
     // Use hash to select movie (deterministic based on date)
-    const index = Math.abs(hash) % allMovies.length
-    const row = allMovies[index]
+    const index = Math.abs(hash) % validMovies.length
+    const row = validMovies[index]
     
     console.log(`Selected movie at index ${index} (hash: ${hash}): ${row.movie_id}`)
     
