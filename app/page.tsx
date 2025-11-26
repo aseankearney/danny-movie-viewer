@@ -183,7 +183,7 @@ export default function Home() {
           The Daily Danny Movie Game
         </h1>
 
-        {!submitted && movie ? (
+        {!submitted && movie && (
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 sm:p-8">
             {/* Year */}
             <div className="text-center mb-6">
@@ -262,7 +262,8 @@ export default function Home() {
               </button>
             </form>
           </div>
-        ) : submitted && movie ? (
+        )}
+        {submitted && movie && (
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 sm:p-8">
             {/* Result Message */}
             <div className="text-center mb-6">
