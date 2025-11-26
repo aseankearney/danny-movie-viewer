@@ -104,13 +104,9 @@ export async function getRandomMovieFromLikedOrHated(): Promise<MovieStatus | nu
   }
 }
 
-// Get daily movie based on date (same for all players on same day)
-export async function getDailyMovie(date: string): Promise<MovieStatus | null> {
+// Get all valid movies for daily puzzle selection
+export async function getValidMoviesForDaily(): Promise<Array<{ movie_id: string | number; status: string; updated_at: Date }>> {
   try {
-    console.log(`Getting daily movie for date: ${date}`)
-    
-    // Use date as seed for consistent random selection
-    // Get all movies with Seen-Liked or Seen-Hated status
     const allMovies = await sql`
       SELECT movie_id, status, updated_at
       FROM movie_statuses
@@ -118,19 +114,27 @@ export async function getDailyMovie(date: string): Promise<MovieStatus | null> {
       ORDER BY movie_id
     `
     
-    console.log(`Found ${allMovies.length} movies with Seen-Liked or Seen-Hated status`)
-    
-    if (allMovies.length === 0) {
-      return null
-    }
-    
     // Filter to only include movies with valid IMDb IDs (starting with 'tt')
     const validMovies = allMovies.filter(movie => {
       const movieId = String(movie.movie_id)
       return movieId.startsWith('tt') && movieId.length > 2
     })
     
-    console.log(`Found ${validMovies.length} valid movies (with IMDb IDs) out of ${allMovies.length} total`)
+    return validMovies
+  } catch (error) {
+    console.error('Error fetching valid movies:', error)
+    return []
+  }
+}
+
+// Get daily movie based on date (same for all players on same day)
+export async function getDailyMovie(date: string): Promise<MovieStatus | null> {
+  try {
+    console.log(`Getting daily movie for date: ${date}`)
+    
+    const validMovies = await getValidMoviesForDaily()
+    
+    console.log(`Found ${validMovies.length} valid movies (with IMDb IDs)`)
     
     if (validMovies.length === 0) {
       console.log('No valid movies with IMDb IDs found')
