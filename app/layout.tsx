@@ -9,6 +9,9 @@ export const metadata: Metadata = {
     statusBarStyle: 'default',
     title: "The Daily Danny Movie Game",
   },
+  other: {
+    'mobile-web-app-capable': 'yes',
+  },
 }
 
 export const viewport: Viewport = {
