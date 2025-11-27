@@ -147,20 +147,24 @@ export default function Home() {
         const errorData = await response.json()
         console.error(`[loadDailyMovie] API error (${response.status}):`, errorData)
         
-        // On first attempt, retry 404s too (database might need to warm up)
-        if (response.status === 404 && retryCount === 0) {
-          console.log('[loadDailyMovie] Got 404 on first attempt, retrying after 1500ms (database warm-up)...')
+        // Retry 404s up to 2 times (database might need to warm up)
+        if (response.status === 404 && retryCount < 2) {
+          const delay = (retryCount + 1) * 2000 // 2s, 4s delays
+          console.log(`[loadDailyMovie] Got 404 on attempt ${retryCount + 1}, retrying after ${delay}ms (database warm-up)...`)
           setTimeout(() => {
-            loadDailyMovie(1)
-          }, 1500)
+            loadDailyMovie(retryCount + 1)
+          }, delay)
           return
         }
         
-        // On subsequent attempts or other status codes, show error
-        if (response.status === 404) {
-          setError(errorData.error || 'No movies available')
-          setMovie(null)
-          setLoading(false)
+        // After 2 retries, keep retrying silently (don't show error)
+        if (response.status === 404 && retryCount >= 2) {
+          // Just keep loading - don't show error message
+          console.log('[loadDailyMovie] Still getting 404 after retries, will keep trying...')
+          // Retry one more time with longer delay
+          setTimeout(() => {
+            loadDailyMovie(retryCount + 1)
+          }, 3000)
           return
         }
         
@@ -189,13 +193,14 @@ export default function Home() {
     } catch (error: any) {
       console.error(`[loadDailyMovie] Error on attempt ${retryCount + 1}:`, error)
       
-      // Auto-retry once if it's the first attempt and not a timeout
+      // Auto-retry up to 2 times if it's not a timeout
       // (404s are now handled above, so we can retry other errors)
-      if (retryCount === 0 && error.name !== 'AbortError' && !error.message?.includes('timeout')) {
-        console.log('[loadDailyMovie] Retrying after 1500ms (network/database warm-up)...')
+      if (retryCount < 2 && error.name !== 'AbortError' && !error.message?.includes('timeout')) {
+        const delay = (retryCount + 1) * 2000 // 2s, 4s delays
+        console.log(`[loadDailyMovie] Retrying after ${delay}ms (network/database warm-up, attempt ${retryCount + 1})...`)
         setTimeout(() => {
-          loadDailyMovie(1)
-        }, 1500)
+          loadDailyMovie(retryCount + 1)
+        }, delay)
         return
       }
       
@@ -514,21 +519,16 @@ export default function Home() {
     )
   }
 
-  if (error || (!movie && !loading)) {
+  if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 p-4">
         <div className="text-center p-8 max-w-md bg-white dark:bg-gray-800 rounded-lg shadow-lg">
           <h1 className="text-2xl font-bold mb-4 text-red-600 dark:text-red-400">
-            {error ? 'Error Loading Game' : 'No Movies Available'}
+            Error Loading Game
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mb-4">
-            {error || 'Danny needs to review some movies first in the tracker app!'}
+            {error}
           </p>
-          {!error && (
-            <p className="text-sm text-gray-500 dark:text-gray-500 mb-4">
-              The game needs movies that Danny has marked as "Seen-Liked" or "Seen-Hated" to work.
-            </p>
-          )}
           <div className="space-y-2">
             <button
               onClick={() => {
@@ -585,7 +585,7 @@ export default function Home() {
             <h2 className="text-2xl sm:text-3xl font-bold mb-4 text-gray-900 dark:text-white">
               How To Play
             </h2>
-            <div className="text-sm sm:text-base text-gray-700 dark:text-gray-300 leading-relaxed text-left max-w-md mx-auto space-y-3">
+            <div className="text-sm sm:text-base text-gray-700 dark:text-gray-300 leading-relaxed text-center max-w-md mx-auto space-y-3">
               <p>
                 You have <span className="font-bold">6 guesses</span> to guess the title of a movie that <span className="font-bold">Danny has seen</span>. Do it in the least amount of guesses to make the top of the leaderboard.
               </p>
@@ -630,13 +630,13 @@ export default function Home() {
             </div>
 
             {/* Danny's Age - with top padding to avoid overlap on mobile */}
-            <div className="text-center mb-6 pt-12 sm:pt-6">
+            <div className="text-center mb-6 pt-20 sm:pt-16">
               {movie.year ? (() => {
                 const movieYear = parseInt(movie.year)
                 const dannyAge = movieYear - 1983
                 return (
                   <div className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white mb-2">
-                    Danny was {dannyAge} years old when this movie was released.
+                    Danny was <span className="font-bold text-green-600 dark:text-green-400">{dannyAge} Years Old</span> when this movie was released.
                   </div>
                 )
               })() : (
