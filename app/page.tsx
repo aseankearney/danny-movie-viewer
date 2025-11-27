@@ -32,7 +32,7 @@ type GameState = 'playing' | 'won' | 'lost'
 export default function Home() {
   const [gameStarted, setGameStarted] = useState(false)
   const [movie, setMovie] = useState<GameMovie | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false) // Start as false, will be set to true when loading starts
   const [error, setError] = useState<string | null>(null)
   const [userAnswer, setUserAnswer] = useState('')
   const [suggestions, setSuggestions] = useState<string[]>([])
@@ -58,6 +58,7 @@ export default function Home() {
   const autocompleteTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
+    console.log('[Component] Component mounted, initializing...')
     // Load top-grossing movie titles from TMDb in the background
     // This starts immediately when the page loads (even on landing page)
     const loadTopGrossingTitles = async () => {
@@ -108,6 +109,7 @@ export default function Home() {
   // Don't show suggestions when input is focused and empty - only show when user types
 
   const loadDailyMovie = useCallback(async () => {
+    console.log('[loadDailyMovie] Function called')
     setLoading(true)
     setError(null)
     setGameState('playing')
@@ -122,21 +124,24 @@ export default function Home() {
     setLeaderboardSubmitted(false)
     
     try {
-      console.log('Starting to load daily movie...')
+      console.log('[loadDailyMovie] Starting fetch to /api/game/daily...')
       
       // Use AbortController for more reliable timeout (10 seconds - Vercel free tier limit)
       const controller = new AbortController()
       const timeoutId = setTimeout(() => {
-        console.warn('Request timeout - aborting fetch')
+        console.warn('[loadDailyMovie] Request timeout after 10s - aborting fetch')
         controller.abort()
       }, 10000)
       
+      console.log('[loadDailyMovie] Fetch initiated, waiting for response...')
+      const fetchStartTime = Date.now()
       const response = await fetch('/api/game/daily', {
         signal: controller.signal
       })
+      const fetchTime = Date.now() - fetchStartTime
       
       clearTimeout(timeoutId)
-      console.log('Got response:', response.status)
+      console.log(`[loadDailyMovie] Got response after ${fetchTime}ms:`, response.status, response.statusText)
       
       if (!response.ok) {
         const errorData = await response.json()
@@ -176,11 +181,14 @@ export default function Home() {
 
   // Load daily movie when game starts
   useEffect(() => {
-    if (gameStarted && !movie && !loading) {
-      console.log('Game started, loading daily movie...')
+    console.log('[Effect] Checking conditions:', { gameStarted, hasMovie: !!movie, loading })
+    if (gameStarted && !movie) {
+      console.log('[Effect] Conditions met, calling loadDailyMovie...')
       loadDailyMovie()
+    } else {
+      console.log('[Effect] Conditions not met, skipping loadDailyMovie')
     }
-  }, [gameStarted, movie, loadDailyMovie, loading])
+  }, [gameStarted, movie, loadDailyMovie])
 
   // Fallback timeout: if loading takes more than 12 seconds, show error
   useEffect(() => {
