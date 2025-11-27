@@ -105,13 +105,6 @@ export default function Home() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  // Load daily movie when game starts
-  useEffect(() => {
-    if (gameStarted && !movie) {
-      loadDailyMovie()
-    }
-  }, [gameStarted, movie, loadDailyMovie])
-
   // Don't show suggestions when input is focused and empty - only show when user types
 
   const loadDailyMovie = useCallback(async () => {
@@ -156,6 +149,13 @@ export default function Home() {
       setLoading(false)
     }
   }, [])
+
+  // Load daily movie when game starts
+  useEffect(() => {
+    if (gameStarted && !movie) {
+      loadDailyMovie()
+    }
+  }, [gameStarted, movie, loadDailyMovie])
 
   const handleInputChange = async (value: string) => {
     setUserAnswer(value)
