@@ -842,7 +842,7 @@ export default function Home() {
             {/* Result Message */}
             <div className="text-center mb-6">
               <div className="text-4xl sm:text-5xl font-bold mb-2 text-green-600">
-                🎉 You Got It Right! 🎉
+                🎉 You got a DAILY DANNY! 🎉
               </div>
               <div className="text-2xl sm:text-3xl font-semibold text-gray-700 dark:text-gray-300 mt-2">
                 In {guessCount} {guessCount === 1 ? 'Guess' : 'Guesses'}!

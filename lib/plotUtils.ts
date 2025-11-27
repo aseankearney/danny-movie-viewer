@@ -49,6 +49,9 @@ export function replaceProperNounsWithRedacted(plot: string): Array<{ text: stri
 
   // Common words that start sentences but aren't proper nouns
   const commonWords = new Set(['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'from', 'as', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must', 'can', 'this', 'that', 'these', 'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they'])
+  
+  // Character names and proper nouns that should always be redacted (case-insensitive)
+  const alwaysRedact = new Set(['patch'])
 
   // Split by sentences first
   const sentences = plot.split(/([.!?]+[\s]*)/)
@@ -95,9 +98,11 @@ export function replaceProperNounsWithRedacted(plot: string): Array<{ text: stri
 
       // Check if it's a proper noun: capitalized word that's not at start of sentence (unless it's a common word)
       // Also check words in parentheses
+      // Also check if it's in the always-redact list (like character names)
       const isCapitalized = /^[A-Z]/.test(wordToCheck)
       const isInParens = parenMatch !== null
-      const isProperNoun = isCapitalized && (!isFirstWord || (wordToCheck.length > 1 && !commonWords.has(lowerWord))) || (isInParens && isCapitalized)
+      const shouldAlwaysRedact = alwaysRedact.has(lowerWord)
+      const isProperNoun = shouldAlwaysRedact || (isCapitalized && (!isFirstWord || (wordToCheck.length > 1 && !commonWords.has(lowerWord))) || (isInParens && isCapitalized))
 
       if (isProperNoun) {
         // Start or continue redacted segment
