@@ -30,6 +30,7 @@ interface GameMovie {
 type GameState = 'playing' | 'won' | 'lost'
 
 export default function Home() {
+  const [gameStarted, setGameStarted] = useState(false)
   const [movie, setMovie] = useState<GameMovie | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -445,6 +446,48 @@ export default function Home() {
           </button>
         </div>
       </div>
+    )
+  }
+
+  // Landing page
+  if (!gameStarted) {
+    return (
+      <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 p-4">
+        <div className="max-w-2xl w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8 sm:p-12 text-center">
+          {/* Title */}
+          <h1 className="text-4xl sm:text-5xl font-bold mb-8 text-gray-900 dark:text-white">
+            Daily Danny Movie Trivia
+          </h1>
+
+          {/* Danny's Photo */}
+          <div className="flex justify-center mb-8">
+            <div className="relative w-48 h-48 sm:w-64 sm:h-64 rounded-full overflow-hidden border-4 border-blue-500 shadow-lg">
+              <Image
+                src="/danny-head.png"
+                alt="Danny"
+                fill
+                className="object-cover"
+                priority
+              />
+            </div>
+          </div>
+
+          {/* Rules */}
+          <div className="mb-8">
+            <p className="text-lg sm:text-xl text-gray-700 dark:text-gray-300 leading-relaxed">
+              Danny has seen all of these movies, but he hasn't liked them all. Try to guess which movie he's talking about in the least amount of guesses!
+            </p>
+          </div>
+
+          {/* Start Game Button */}
+          <button
+            onClick={() => setGameStarted(true)}
+            className="px-8 py-4 bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white rounded-lg font-semibold text-xl transition-colors touch-manipulation shadow-lg"
+          >
+            Start Game
+          </button>
+        </div>
+      </main>
     )
   }
 
