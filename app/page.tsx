@@ -37,7 +37,10 @@ export default function Home() {
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [gameState, setGameState] = useState<GameState>('playing')
+  const MAX_HINT_LEVEL = 7
+
   const [hintsUsed, setHintsUsed] = useState(0)
+  const [guessCount, setGuessCount] = useState(0)
   const [hintsShown, setHintsShown] = useState<number[]>([])
   const [wrongMessage, setWrongMessage] = useState<string | null>(null)
   const [playerName, setPlayerName] = useState('')
@@ -110,6 +113,7 @@ export default function Home() {
     setShowSuggestions(false)
     setHintsUsed(0)
     setHintsShown([])
+    setGuessCount(0)
     setWrongMessage(null)
     setPlayerName('')
     setLeaderboardSubmitted(false)
@@ -274,18 +278,16 @@ export default function Home() {
       case 3:
         return movie.rated ? `This movie is rated: ${movie.rated}` : null
       case 4:
-        return movie.academyAwards || null
-      case 5:
         if (movie.fourthAndFifthActors) {
           return `This movie features ${movie.fourthAndFifthActors}`
         }
         // Fallback: try to get any actors from the movie data
         return null
-      case 6:
+      case 5:
         return movie.director ? `This movie was directed by ${movie.director}` : null
-      case 7:
+      case 6:
         return movie.firstActor ? `This movie stars ${movie.firstActor}` : null
-      case 8:
+      case 7:
         // Return special marker for plot hint (needs special rendering)
         return movie.plotWithRedacted ? '__PLOT_HINT__' : null
       default:
@@ -300,14 +302,14 @@ export default function Home() {
 
     const hasAnswer = userAnswer.trim().length > 0
 
-      // If "No Clue" was pressed (empty answer)
-      if (!hasAnswer) {
-        if (hintsUsed >= 8) {
-          // Show loss screen
-          setGameState('lost')
-          return
-        }
-      
+    // If "No Clue" was pressed (empty answer)
+    if (!hasAnswer) {
+      if (hintsUsed >= MAX_HINT_LEVEL) {
+        // Show loss screen
+        setGameState('lost')
+        return
+      }
+    
       // Increment hint and show it
       const nextHintLevel = hintsUsed + 1
       setHintsUsed(nextHintLevel)
@@ -315,6 +317,9 @@ export default function Home() {
       setWrongMessage(null) // Remove the "No clue used" message
       return
     }
+
+    const nextGuessCount = guessCount + 1
+    setGuessCount(nextGuessCount)
 
     // Check if answer is correct
     const normalizedUserAnswer = normalizeTitle(userAnswer)
@@ -327,7 +332,7 @@ export default function Home() {
       setShowSuggestions(false)
     } else {
       // Wrong answer
-      if (hintsUsed >= 8) {
+      if (hintsUsed >= MAX_HINT_LEVEL) {
         // Show loss screen
         setGameState('lost')
         return
@@ -357,7 +362,7 @@ export default function Home() {
         },
         body: JSON.stringify({
           playerName: playerName.trim(),
-          hintsUsed: hintsUsed,
+          hintsUsed: guessCount,
           puzzleDate: movie.puzzleDate,
         }),
       })
@@ -455,7 +460,7 @@ export default function Home() {
             {/* Guesses Used Counter - Top Right */}
             <div className="absolute top-4 right-4 bg-blue-100 dark:bg-blue-900/30 border-2 border-blue-300 dark:border-blue-700 rounded-lg px-3 py-1.5 sm:px-4 sm:py-2 shadow-md z-10">
               <div className="text-base sm:text-lg md:text-xl font-bold text-blue-800 dark:text-blue-200">
-                Guesses Used: {hintsUsed}
+                Guesses Used: {guessCount}
               </div>
             </div>
 
@@ -596,7 +601,7 @@ export default function Home() {
                 🎉 You Got It Right! 🎉
               </div>
               <div className="text-2xl sm:text-3xl font-semibold text-gray-700 dark:text-gray-300 mt-2">
-                In {hintsUsed} {hintsUsed === 1 ? 'Guess' : 'Guesses'}!
+                In {guessCount} {guessCount === 1 ? 'Guess' : 'Guesses'}!
               </div>
             </div>
 
