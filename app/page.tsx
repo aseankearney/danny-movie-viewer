@@ -189,20 +189,7 @@ export default function Home() {
     }
   }, [])
 
-  // Load daily movie when game starts
-  useEffect(() => {
-    console.log('[Effect] Checking conditions:', { gameStarted, hasMovie: !!movie, loading })
-    if (gameStarted && !movie && !loading) {
-      console.log('[Effect] Conditions met, calling loadDailyMovie with small delay...')
-      // Small delay to ensure everything is ready
-      const timer = setTimeout(() => {
-        loadDailyMovie()
-      }, 100)
-      return () => clearTimeout(timer)
-    } else {
-      console.log('[Effect] Conditions not met, skipping loadDailyMovie')
-    }
-  }, [gameStarted, movie, loadDailyMovie, loading])
+  // Don't auto-load - only load when Start Game button is clicked
 
   // Fallback timeout: if loading takes more than 12 seconds, show error
   useEffect(() => {
@@ -257,15 +244,14 @@ export default function Home() {
           return a.length - b.length
         })
 
-        if (
-          movie?.title &&
-          movie.title.toLowerCase().includes(valueLower) &&
-          !suggestions.some(t => t.toLowerCase() === movie.title!.toLowerCase())
-        ) {
-          suggestions = [movie.title, ...suggestions]
-        }
-
-        const uniqueSuggestions = Array.from(new Set(suggestions))
+        // Don't add the correct movie title to suggestions - let users guess naturally
+        // Filter out the correct answer if it appears in the list
+        const uniqueSuggestions = Array.from(new Set(suggestions)).filter(title => {
+          if (movie?.title) {
+            return title.toLowerCase() !== movie.title.toLowerCase()
+          }
+          return true
+        })
         setSuggestions(uniqueSuggestions.slice(0, 50))
         setShowSuggestions(uniqueSuggestions.length > 0)
         setLoadingAutocomplete(false)
@@ -592,7 +578,13 @@ export default function Home() {
 
           {/* Start Game Button */}
           <button
-            onClick={() => setGameStarted(true)}
+            onClick={() => {
+              setGameStarted(true)
+              // Load the movie when Start Game is clicked
+              setTimeout(() => {
+                loadDailyMovie()
+              }, 100)
+            }}
             className="px-8 py-4 bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white rounded-lg font-semibold text-xl transition-colors touch-manipulation shadow-lg"
           >
             Start Game
