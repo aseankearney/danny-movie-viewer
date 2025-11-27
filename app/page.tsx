@@ -38,7 +38,7 @@ export default function Home() {
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [gameState, setGameState] = useState<GameState>('playing')
-  const MAX_HINT_LEVEL = 7
+  const MAX_HINT_LEVEL = 6
 
   const [hintsUsed, setHintsUsed] = useState(0)
   const [guessCount, setGuessCount] = useState(0)
@@ -355,26 +355,18 @@ export default function Home() {
       case 1:
         return movie.genre ? `This movie's genre is: ${movie.genre}` : null
       case 2:
-        // Danny's age when movie came out (Danny born in 1983)
-        if (movie.year) {
-          const movieYear = parseInt(movie.year)
-          const dannyAge = movieYear - 1983
-          return `Danny was ${dannyAge} years old when this movie came out.`
-        }
-        return null
-      case 3:
         return movie.rated ? `This movie is rated: ${movie.rated}` : null
-      case 4:
+      case 3:
         if (movie.fourthAndFifthActors) {
           return `Danny probably doesn't know these actors that were in this movie: ${movie.fourthAndFifthActors}`
         }
         // Fallback: try to get any actors from the movie data
         return null
-      case 5:
+      case 4:
         return movie.director ? `Danny probably doesn't know that ${movie.director} directed this movie.` : null
-      case 6:
+      case 5:
         return movie.firstActor ? `Danny definitely knows that ${movie.firstActor} starred in this movie.` : null
-      case 7:
+      case 6:
         // Return special marker for plot hint (needs special rendering)
         return movie.plotWithRedacted ? '__PLOT_HINT__' : null
       default:
@@ -391,7 +383,7 @@ export default function Home() {
 
     // If "No Clue" was pressed (empty answer)
     if (!hasAnswer) {
-      if (hintsUsed >= MAX_HINT_LEVEL) {
+      if (hintsUsed >= 6) {
         // Show loss screen
         setGameState('lost')
         return
@@ -419,7 +411,7 @@ export default function Home() {
       setShowSuggestions(false)
     } else {
       // Wrong answer
-      if (hintsUsed >= MAX_HINT_LEVEL) {
+      if (hintsUsed >= 6) {
         // Show loss screen
         setGameState('lost')
         return
@@ -691,6 +683,71 @@ export default function Home() {
                               {segment.text}
                             </span>
                           ))}
+                        </div>
+                      </div>
+                    )
+                  }
+                  
+                  // Check if hint contains actor names that need to be styled
+                  const actorHints = [
+                    'Danny probably doesn\'t know these actors that were in this movie:',
+                    'Danny probably doesn\'t know that',
+                    'Danny definitely knows that'
+                  ]
+                  const isActorHint = actorHints.some(prefix => hintText.includes(prefix))
+                  
+                  if (isActorHint) {
+                    // Extract actor names and make them bold and blue
+                    let formattedText = hintText
+                    
+                    // For fourthAndFifthActors hint
+                    if (hintText.includes('Danny probably doesn\'t know these actors')) {
+                      const match = hintText.match(/Danny probably doesn't know these actors that were in this movie: (.+)/)
+                      if (match && match[1]) {
+                        const actors = match[1].split(' and ').map(a => a.trim())
+                        formattedText = (
+                          <>
+                            Danny probably doesn't know these actors that were in this movie:{' '}
+                            {actors.map((actor, idx) => (
+                              <span key={idx}>
+                                <span className="font-bold text-blue-600 dark:text-blue-400">{actor}</span>
+                                {idx < actors.length - 1 ? ' and ' : ''}
+                              </span>
+                            ))}
+                          </>
+                        )
+                      }
+                    }
+                    // For director hint
+                    else if (hintText.includes('Danny probably doesn\'t know that') && movie.director) {
+                      const parts = hintText.split(movie.director)
+                      formattedText = (
+                        <>
+                          {parts[0]}
+                          <span className="font-bold text-blue-600 dark:text-blue-400">{movie.director}</span>
+                          {parts[1]}
+                        </>
+                      )
+                    }
+                    // For first actor hint
+                    else if (hintText.includes('Danny definitely knows that') && movie.firstActor) {
+                      const parts = hintText.split(movie.firstActor)
+                      formattedText = (
+                        <>
+                          {parts[0]}
+                          <span className="font-bold text-blue-600 dark:text-blue-400">{movie.firstActor}</span>
+                          {parts[1]}
+                        </>
+                      )
+                    }
+                    
+                    return (
+                      <div
+                        key={hintLevel}
+                        className="text-center"
+                      >
+                        <div className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">
+                          {formattedText}
                         </div>
                       </div>
                     )

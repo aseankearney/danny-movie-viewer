@@ -82,15 +82,22 @@ export function replaceProperNounsWithRedacted(plot: string): Array<{ text: stri
         continue
       }
 
-      // Extract word without punctuation for checking
-      const wordMatch = word.match(/^([^.,!?;:()\[\]{}'"]+)(.*)$/)
+      // Extract word without punctuation for checking (but preserve parentheses content)
+      // Handle words like "Patch" in "(Patch)"
+      const wordMatch = word.match(/^([^.,!?;:\[\]{}'"]+)(.*)$/)
       const baseWord = wordMatch ? wordMatch[1] : word
       const punctuation = wordMatch ? wordMatch[2] : ''
-      const lowerWord = baseWord.toLowerCase()
+      
+      // Check if word is in parentheses - if so, treat the content as a potential proper noun
+      const parenMatch = word.match(/^\(([^)]+)\)$/)
+      const wordToCheck = parenMatch ? parenMatch[1] : baseWord
+      const lowerWord = wordToCheck.toLowerCase()
 
       // Check if it's a proper noun: capitalized word that's not at start of sentence (unless it's a common word)
-      const isCapitalized = /^[A-Z]/.test(baseWord)
-      const isProperNoun = isCapitalized && (!isFirstWord || (baseWord.length > 1 && !commonWords.has(lowerWord)))
+      // Also check words in parentheses
+      const isCapitalized = /^[A-Z]/.test(wordToCheck)
+      const isInParens = parenMatch !== null
+      const isProperNoun = isCapitalized && (!isFirstWord || (wordToCheck.length > 1 && !commonWords.has(lowerWord))) || (isInParens && isCapitalized)
 
       if (isProperNoun) {
         // Start or continue redacted segment
@@ -101,13 +108,19 @@ export function replaceProperNounsWithRedacted(plot: string): Array<{ text: stri
           }
           isCurrentRedacted = true
         }
-        // Replace the word with REDACTED (only once per redacted segment)
-        if (!currentSegment.includes('REDACTED')) {
-          currentSegment = 'REDACTED' + punctuation
+        // Replace the word with REDACTED
+        // If it's in parentheses like "(Patch)", replace with "(REDACTED)"
+        if (isInParens) {
+          currentSegment += '(REDACTED)'
         } else {
-          // Already have REDACTED, just add punctuation if needed
-          if (punctuation && !currentSegment.includes(punctuation)) {
-            currentSegment += punctuation
+          // For regular words, replace with REDACTED + punctuation
+          if (!currentSegment.includes('REDACTED')) {
+            currentSegment = 'REDACTED' + punctuation
+          } else {
+            // Already have REDACTED, just add punctuation if needed
+            if (punctuation && !currentSegment.includes(punctuation)) {
+              currentSegment += punctuation
+            }
           }
         }
       } else {
