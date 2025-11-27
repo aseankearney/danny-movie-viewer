@@ -453,7 +453,7 @@ export default function Home() {
   if (!gameStarted) {
     return (
       <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 p-4">
-        <div className="max-w-2xl w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8 sm:p-12 text-center">
+        <div className="max-w-2xl w-full bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-lg shadow-lg p-8 sm:p-12 text-center">
           {/* Title */}
           <h1 className="text-4xl sm:text-5xl font-bold mb-8 text-gray-900 dark:text-white">
             Daily Danny Movie Trivia
@@ -474,9 +474,14 @@ export default function Home() {
 
           {/* Rules */}
           <div className="mb-8">
-            <p className="text-lg sm:text-xl text-gray-700 dark:text-gray-300 leading-relaxed">
-              Danny has seen all of these movies, but he hasn't liked them all. Try to guess which movie he's talking about in the least amount of guesses!
-            </p>
+            <h2 className="text-2xl sm:text-3xl font-bold mb-4 text-gray-900 dark:text-white">
+              How To Play
+            </h2>
+            <ol className="text-sm sm:text-base text-gray-700 dark:text-gray-300 leading-relaxed space-y-2 text-left max-w-md mx-auto">
+              <li>1. Danny has seen all of these movies.</li>
+              <li>2. Guess the movie in as few guesses as possible.</li>
+              <li>3. New puzzle every day!</li>
+            </ol>
           </div>
 
           {/* Start Game Button */}
