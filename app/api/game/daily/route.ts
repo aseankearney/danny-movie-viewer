@@ -35,55 +35,41 @@ export async function GET() {
     
     console.log('[Daily Movie API] Querying database...')
     
-    // First, let's check what statuses actually exist in the database
-    const allStatuses = await sql`
-      SELECT DISTINCT status, COUNT(*) as count
-      FROM movie_statuses
-      GROUP BY status
-    `
-    console.log('[Daily Movie API] Statuses in database:', allStatuses)
-    
-    // Also check total movie count
-    const totalCount = await sql`
-      SELECT COUNT(*) as count
-      FROM movie_statuses
-    `
-    console.log(`[Daily Movie API] Total movies in database: ${totalCount[0]?.count || 0}`)
-    
-    const movies = await sql`
-      SELECT movie_id, status, updated_at
-      FROM movie_statuses
-      WHERE status IN ('Seen-Liked', 'Seen-Hated')
-      ORDER BY updated_at DESC
-      LIMIT 5
-    `
-    console.log(`[Daily Movie API] Found ${movies.length} movies with Seen-Liked or Seen-Hated status`)
-    
-    // If no movies found with those exact statuses, try to find any movies
-    if (movies.length === 0) {
-      const anyMovies = await sql`
+    // Simplified query - just get the movies we need, no extra queries
+    // Add retry logic for database connection
+    let movies
+    try {
+      movies = await sql`
         SELECT movie_id, status, updated_at
         FROM movie_statuses
+        WHERE status IN ('Seen-Liked', 'Seen-Hated')
         ORDER BY updated_at DESC
-        LIMIT 5
+        LIMIT 3
       `
-      console.log(`[Daily Movie API] Found ${anyMovies.length} total movies (any status)`)
-      
-      if (anyMovies.length > 0) {
-        const sampleStatuses = anyMovies.map(m => m.status).join(', ')
-        console.log('[Daily Movie API] Sample movie statuses:', sampleStatuses)
-        const statusInfo = allStatuses.map((s: any) => `${s.status}: ${s.count}`).join(', ')
-        return NextResponse.json(
-          { 
-            error: `No movies found with status "Seen-Liked" or "Seen-Hated". Found ${anyMovies.length} movies total. Statuses in database: ${statusInfo}. Sample statuses: ${sampleStatuses}` 
-          },
-          { status: 404 }
-        )
+      console.log(`[Daily Movie API] Found ${movies.length} movies with Seen-Liked or Seen-Hated status`)
+    } catch (dbError: any) {
+      console.error('[Daily Movie API] Database query failed, retrying once...', dbError)
+      // Retry once after a short delay
+      await new Promise(resolve => setTimeout(resolve, 500))
+      try {
+        movies = await sql`
+          SELECT movie_id, status, updated_at
+          FROM movie_statuses
+          WHERE status IN ('Seen-Liked', 'Seen-Hated')
+          ORDER BY updated_at DESC
+          LIMIT 3
+        `
+        console.log(`[Daily Movie API] Retry successful - Found ${movies.length} movies`)
+      } catch (retryError: any) {
+        console.error('[Daily Movie API] Database retry also failed:', retryError)
+        throw new Error(`Database connection failed: ${retryError.message}`)
       }
-      
+    }
+    
+    if (movies.length === 0) {
       return NextResponse.json(
         { 
-          error: `No movies available in database. Total count: ${totalCount[0]?.count || 0}. Danny needs to review some movies in the tracker app first!` 
+          error: 'No movies available. Danny needs to review some movies in the tracker app first! The game needs movies marked as "Seen-Liked" or "Seen-Hated".' 
         },
         { status: 404 }
       )
@@ -95,7 +81,7 @@ export async function GET() {
     
     // Try up to 3 movies (reduced for faster response), but with timeout protection
     console.log('[Daily Movie API] Trying to fetch movie details from TMDb...')
-    const moviesToTry = movies.slice(0, 3) // Only try first 3 for speed
+    const moviesToTry = movies // Already limited to 3
     
     for (let i = 0; i < moviesToTry.length; i++) {
       const movie = moviesToTry[i]

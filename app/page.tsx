@@ -145,7 +145,17 @@ export default function Home() {
       
       if (!response.ok) {
         const errorData = await response.json()
-        console.error('API error:', errorData)
+        console.error(`[loadDailyMovie] API error (${response.status}):`, errorData)
+        
+        // Don't retry on 404 (no movies) - that's a real error
+        if (response.status === 404) {
+          setError(errorData.error || 'No movies available')
+          setMovie(null)
+          setLoading(false)
+          return
+        }
+        
+        // For other errors, might be transient - allow retry
         setError(errorData.error || 'Failed to load movie')
         setMovie(null)
         setLoading(false)
@@ -170,12 +180,13 @@ export default function Home() {
     } catch (error: any) {
       console.error(`[loadDailyMovie] Error on attempt ${retryCount + 1}:`, error)
       
-      // Auto-retry once if it's the first attempt and not a timeout
-      if (retryCount === 0 && error.name !== 'AbortError' && !error.message?.includes('timeout')) {
-        console.log('[loadDailyMovie] Retrying after 500ms...')
+      // Auto-retry once if it's the first attempt and not a timeout or 404 (404 means no movies, don't retry)
+      const is404 = error.message?.includes('404') || error.message?.includes('No movies')
+      if (retryCount === 0 && error.name !== 'AbortError' && !error.message?.includes('timeout') && !is404) {
+        console.log('[loadDailyMovie] Retrying after 1000ms...')
         setTimeout(() => {
           loadDailyMovie(1)
-        }, 500)
+        }, 1000)
         return
       }
       
