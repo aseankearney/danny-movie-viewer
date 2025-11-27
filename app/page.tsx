@@ -508,6 +508,105 @@ export default function Home() {
     setShowLeaderboard(true)
   }
 
+  const handleShare = async () => {
+    if (!movie) return
+
+    try {
+      // Create canvas
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return
+
+      // Set canvas size
+      canvas.width = 800
+      canvas.height = 600
+
+      // Background gradient
+      const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height)
+      gradient.addColorStop(0, '#f0fdf4')
+      gradient.addColorStop(1, '#dcfce7')
+      ctx.fillStyle = gradient
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+      // Draw main text first (at the top)
+      ctx.fillStyle = '#16a34a' // green-600
+      ctx.font = 'bold 48px Arial'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'top'
+      const mainText = `I got a Daily Danny in ${guessCount} ${guessCount === 1 ? 'Guess' : 'Guesses'}!`
+      ctx.fillText(mainText, canvas.width / 2, 100)
+
+      // Load Danny head image
+      const dannyHeadImg = new Image()
+      dannyHeadImg.crossOrigin = 'anonymous'
+      
+      await new Promise((resolve, reject) => {
+        dannyHeadImg.onload = resolve
+        dannyHeadImg.onerror = reject
+        dannyHeadImg.src = '/danny-head.png'
+      })
+
+      // Draw Danny head centered below the text
+      const headSize = 300
+      const headX = (canvas.width - headSize) / 2
+      const headY = 250
+      ctx.drawImage(dannyHeadImg, headX, headY, headSize, headSize)
+
+      // Convert to blob
+      canvas.toBlob(async (blob) => {
+        if (!blob) return
+
+        const file = new File([blob], 'daily-danny.png', { type: 'image/png' })
+        const gameUrl = window.location.origin
+        const shareText = `I got a DAILY DANNY in ${guessCount} ${guessCount === 1 ? 'guess' : 'guesses'}! Play the Daily Danny Movie Game: ${gameUrl}`
+
+        // Use Web Share API if available
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({
+              text: shareText,
+              files: [file],
+            })
+          } catch (err) {
+            // User cancelled or error - fallback to download
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement('a')
+            a.href = url
+            a.download = 'daily-danny.png'
+            document.body.appendChild(a)
+            a.click()
+            document.body.removeChild(a)
+            URL.revokeObjectURL(url)
+            // Copy text to clipboard
+            await navigator.clipboard.writeText(shareText)
+            alert('Image downloaded! Link copied to clipboard.')
+          }
+        } else {
+          // Fallback: download image and copy text
+          const url = URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = url
+          a.download = 'daily-danny.png'
+          document.body.appendChild(a)
+          a.click()
+          document.body.removeChild(a)
+          URL.revokeObjectURL(url)
+          
+          // Copy text to clipboard
+          try {
+            await navigator.clipboard.writeText(shareText)
+            alert('Image downloaded! Link copied to clipboard - paste it in your message app!')
+          } catch (err) {
+            alert('Image downloaded! Share this link: ' + gameUrl)
+          }
+        }
+      }, 'image/png')
+    } catch (error) {
+      console.error('Error creating share image:', error)
+      alert('Failed to create share image. Please try again.')
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
@@ -940,6 +1039,19 @@ export default function Home() {
                 </button>
               </div>
             )}
+
+            {/* Share Button */}
+            <div className="mt-6">
+              <button
+                onClick={handleShare}
+                className="w-full px-6 py-4 bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white rounded-lg font-semibold text-lg transition-colors touch-manipulation flex items-center justify-center gap-2"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                </svg>
+                Share Your Daily Danny!
+              </button>
+            </div>
           </div>
         )}
 
