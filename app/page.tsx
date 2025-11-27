@@ -841,8 +841,26 @@ export default function Home() {
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 sm:p-8">
             {/* Result Message */}
             <div className="text-center mb-6">
-              <div className="text-4xl sm:text-5xl font-bold mb-2 text-green-600">
-                🎉 You got a DAILY DANNY! 🎉
+              <div className="text-4xl sm:text-5xl font-bold mb-2 text-green-600 flex items-center justify-center gap-2">
+                <div className="relative w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0">
+                  <Image
+                    src="/danny-head.png"
+                    alt="Danny"
+                    fill
+                    className="object-contain"
+                    priority
+                  />
+                </div>
+                <span>You got a DAILY DANNY!</span>
+                <div className="relative w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0">
+                  <Image
+                    src="/danny-head.png"
+                    alt="Danny"
+                    fill
+                    className="object-contain"
+                    priority
+                  />
+                </div>
               </div>
               <div className="text-2xl sm:text-3xl font-semibold text-gray-700 dark:text-gray-300 mt-2">
                 In {guessCount} {guessCount === 1 ? 'Guess' : 'Guesses'}!
