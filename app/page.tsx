@@ -108,8 +108,8 @@ export default function Home() {
 
   // Don't show suggestions when input is focused and empty - only show when user types
 
-  const loadDailyMovie = useCallback(async () => {
-    console.log('[loadDailyMovie] Function called')
+  const loadDailyMovie = useCallback(async (retryCount = 0) => {
+    console.log(`[loadDailyMovie] Function called (attempt ${retryCount + 1})`)
     setLoading(true)
     setError(null)
     setGameState('playing')
@@ -168,7 +168,17 @@ export default function Home() {
       setLoading(false)
       console.log('Movie loaded successfully')
     } catch (error: any) {
-      console.error('Error loading movie:', error)
+      console.error(`[loadDailyMovie] Error on attempt ${retryCount + 1}:`, error)
+      
+      // Auto-retry once if it's the first attempt and not a timeout
+      if (retryCount === 0 && error.name !== 'AbortError' && !error.message?.includes('timeout')) {
+        console.log('[loadDailyMovie] Retrying after 500ms...')
+        setTimeout(() => {
+          loadDailyMovie(1)
+        }, 500)
+        return
+      }
+      
       if (error.name === 'AbortError' || error.message?.includes('timeout') || error.message?.includes('abort')) {
         setError('Request timed out after 10 seconds. The TMDb API may be slow or rate-limited. Please try refreshing the page.')
       } else {
@@ -182,13 +192,17 @@ export default function Home() {
   // Load daily movie when game starts
   useEffect(() => {
     console.log('[Effect] Checking conditions:', { gameStarted, hasMovie: !!movie, loading })
-    if (gameStarted && !movie) {
-      console.log('[Effect] Conditions met, calling loadDailyMovie...')
-      loadDailyMovie()
+    if (gameStarted && !movie && !loading) {
+      console.log('[Effect] Conditions met, calling loadDailyMovie with small delay...')
+      // Small delay to ensure everything is ready
+      const timer = setTimeout(() => {
+        loadDailyMovie()
+      }, 100)
+      return () => clearTimeout(timer)
     } else {
       console.log('[Effect] Conditions not met, skipping loadDailyMovie')
     }
-  }, [gameStarted, movie, loadDailyMovie])
+  }, [gameStarted, movie, loadDailyMovie, loading])
 
   // Fallback timeout: if loading takes more than 12 seconds, show error
   useEffect(() => {
