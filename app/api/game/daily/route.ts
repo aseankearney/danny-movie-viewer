@@ -70,10 +70,12 @@ export async function GET() {
       console.log(`[Daily Movie API] Found ${anyMovies.length} total movies (any status)`)
       
       if (anyMovies.length > 0) {
-        console.log('[Daily Movie API] Sample movie statuses:', anyMovies.map(m => ({ id: m.movie_id, status: m.status })))
+        const sampleStatuses = anyMovies.map(m => m.status).join(', ')
+        console.log('[Daily Movie API] Sample movie statuses:', sampleStatuses)
+        const statusInfo = allStatuses.map((s: any) => `${s.status}: ${s.count}`).join(', ')
         return NextResponse.json(
           { 
-            error: `No movies found with status "Seen-Liked" or "Seen-Hated". Found ${anyMovies.length} movies with other statuses. Please check the tracker app and ensure movies are marked as "Seen-Liked" or "Seen-Hated".` 
+            error: `No movies found with status "Seen-Liked" or "Seen-Hated". Found ${anyMovies.length} movies total. Statuses in database: ${statusInfo}. Sample statuses: ${sampleStatuses}` 
           },
           { status: 404 }
         )
@@ -81,7 +83,7 @@ export async function GET() {
       
       return NextResponse.json(
         { 
-          error: 'No movies available. Danny needs to review some movies in the tracker app first! The game needs movies marked as "Seen-Liked" or "Seen-Hated".' 
+          error: `No movies available in database. Total count: ${totalCount[0]?.count || 0}. Danny needs to review some movies in the tracker app first!` 
         },
         { status: 404 }
       )
