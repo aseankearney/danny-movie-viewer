@@ -577,9 +577,9 @@ export default function Home() {
               How To Play
             </h2>
             <ol className="text-sm sm:text-base text-gray-700 dark:text-gray-300 leading-relaxed space-y-2 text-left max-w-md mx-auto">
-              <li>1. Try and guess the title of a movie that Danny has seen in the least amount of guesses.</li>
-              <li>2. Do it in the least amount of guesses to make the leaderboard.</li>
-              <li>3. Come back tomorrow for a new puzzle!</li>
+              <li>1. You have 6 chances to guess the title of a movie that Danny has seen.</li>
+              <li>2. Do it in the least amount of guesses to make the top of the leaderboard.</li>
+              <li>3. Come back tomorrow for a brand new puzzle!</li>
             </ol>
           </div>
 
