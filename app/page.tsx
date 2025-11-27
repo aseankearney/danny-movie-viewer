@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import Image from 'next/image'
 
 interface PlotSegment {
@@ -58,25 +58,27 @@ export default function Home() {
   const autocompleteTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
-    // Load all movie titles from TMDb (as fallback)
-    const loadAllTitles = async () => {
+    // Load top-grossing movie titles from TMDb in the background
+    // This starts immediately when the page loads (even on landing page)
+    const loadTopGrossingTitles = async () => {
       setLoadingTitles(true)
       try {
-        // Get comprehensive list from TMDb (cached)
-        const response = await fetch('/api/game/titles')
+        // Get top 25 highest-grossing movies per year (1989-2025) from TMDb (cached)
+        const response = await fetch('/api/game/top-grossing')
         const data = await response.json()
         if (data.titles && Array.isArray(data.titles)) {
           setAllMovieTitles(data.titles)
+          console.log(`Loaded ${data.titles.length} top-grossing movie titles`)
         }
       } catch (error) {
-        console.error('Error loading movie titles:', error)
+        console.error('Error loading top-grossing movie titles:', error)
       } finally {
         setLoadingTitles(false)
       }
     }
     
-    loadAllTitles()
-    loadDailyMovie()
+    // Start loading top-grossing movies immediately in the background
+    loadTopGrossingTitles()
     
     // Cleanup timeout on unmount
     return () => {
@@ -103,9 +105,16 @@ export default function Home() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
+  // Load daily movie when game starts
+  useEffect(() => {
+    if (gameStarted && !movie) {
+      loadDailyMovie()
+    }
+  }, [gameStarted, movie, loadDailyMovie])
+
   // Don't show suggestions when input is focused and empty - only show when user types
 
-  const loadDailyMovie = async () => {
+  const loadDailyMovie = useCallback(async () => {
     setLoading(true)
     setError(null)
     setGameState('playing')
@@ -146,7 +155,7 @@ export default function Home() {
       setMovie(null)
       setLoading(false)
     }
-  }
+  }, [])
 
   const handleInputChange = async (value: string) => {
     setUserAnswer(value)

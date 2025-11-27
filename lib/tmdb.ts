@@ -213,6 +213,52 @@ function getCastInfo(cast?: TMDbCastMember[]) {
   }
 }
 
+export async function getTopGrossingMoviesByYear(year: number, limit: number = 25): Promise<string[]> {
+  if (!TMDB_API_KEY) {
+    return []
+  }
+
+  try {
+    const titles: string[] = []
+    const seen = new Set<string>()
+    
+    // Use discover endpoint to get top-grossing movies by revenue for the year
+    // We'll fetch multiple pages to get at least 25 movies
+    for (let page = 1; page <= 3; page++) {
+      if (titles.length >= limit) break
+      
+      const data = await fetchTMDb<TMDbSearchResponse>('/discover/movie', {
+        'primary_release_year': year,
+        'sort_by': 'revenue.desc',
+        page,
+        'include_adult': 'false',
+      })
+
+      if (!data.results || data.results.length === 0) {
+        break
+      }
+
+      for (const movie of data.results) {
+        if (movie.title && !seen.has(movie.title.toLowerCase())) {
+          titles.push(movie.title.trim())
+          seen.add(movie.title.toLowerCase())
+          if (titles.length >= limit) break
+        }
+      }
+
+      // Small delay to avoid rate limiting
+      if (page < 3 && titles.length < limit) {
+        await new Promise(resolve => setTimeout(resolve, 200))
+      }
+    }
+
+    return titles.slice(0, limit)
+  } catch (error) {
+    console.error(`Error fetching top-grossing movies for year ${year}:`, error)
+    return []
+  }
+}
+
 export async function getTMDbMovieDetailsByIMDbId(imdbId: string): Promise<TMDbMovieDetails | null> {
   if (!imdbId || !imdbId.startsWith('tt')) {
     return null
