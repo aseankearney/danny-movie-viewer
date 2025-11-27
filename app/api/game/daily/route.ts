@@ -34,6 +34,22 @@ export async function GET() {
     const sql = neon(process.env.DATABASE_URL!)
     
     console.log('[Daily Movie API] Querying database...')
+    
+    // First, let's check what statuses actually exist in the database
+    const allStatuses = await sql`
+      SELECT DISTINCT status, COUNT(*) as count
+      FROM movie_statuses
+      GROUP BY status
+    `
+    console.log('[Daily Movie API] Statuses in database:', allStatuses)
+    
+    // Also check total movie count
+    const totalCount = await sql`
+      SELECT COUNT(*) as count
+      FROM movie_statuses
+    `
+    console.log(`[Daily Movie API] Total movies in database: ${totalCount[0]?.count || 0}`)
+    
     const movies = await sql`
       SELECT movie_id, status, updated_at
       FROM movie_statuses
@@ -41,9 +57,28 @@ export async function GET() {
       ORDER BY updated_at DESC
       LIMIT 5
     `
-    console.log(`[Daily Movie API] Found ${movies.length} movies in database`)
+    console.log(`[Daily Movie API] Found ${movies.length} movies with Seen-Liked or Seen-Hated status`)
     
+    // If no movies found with those exact statuses, try to find any movies
     if (movies.length === 0) {
+      const anyMovies = await sql`
+        SELECT movie_id, status, updated_at
+        FROM movie_statuses
+        ORDER BY updated_at DESC
+        LIMIT 5
+      `
+      console.log(`[Daily Movie API] Found ${anyMovies.length} total movies (any status)`)
+      
+      if (anyMovies.length > 0) {
+        console.log('[Daily Movie API] Sample movie statuses:', anyMovies.map(m => ({ id: m.movie_id, status: m.status })))
+        return NextResponse.json(
+          { 
+            error: `No movies found with status "Seen-Liked" or "Seen-Hated". Found ${anyMovies.length} movies with other statuses. Please check the tracker app and ensure movies are marked as "Seen-Liked" or "Seen-Hated".` 
+          },
+          { status: 404 }
+        )
+      }
+      
       return NextResponse.json(
         { 
           error: 'No movies available. Danny needs to review some movies in the tracker app first! The game needs movies marked as "Seen-Liked" or "Seen-Hated".' 
