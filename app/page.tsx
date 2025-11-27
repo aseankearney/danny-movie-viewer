@@ -585,11 +585,14 @@ export default function Home() {
             <h2 className="text-2xl sm:text-3xl font-bold mb-4 text-gray-900 dark:text-white">
               How To Play
             </h2>
-            <ol className="text-sm sm:text-base text-gray-700 dark:text-gray-300 leading-relaxed space-y-2 text-left max-w-md mx-auto">
-              <li>1. You have 6 chances to guess the title of a movie that Danny has seen.</li>
-              <li>2. Do it in the least amount of guesses to make the top of the leaderboard.</li>
-              <li>3. Come back tomorrow for a brand new puzzle!</li>
-            </ol>
+            <div className="text-sm sm:text-base text-gray-700 dark:text-gray-300 leading-relaxed text-left max-w-md mx-auto space-y-3">
+              <p>
+                You have <span className="font-bold">6 guesses</span> to guess the title of a movie that <span className="font-bold">Danny has seen</span>. Do it in the least amount of guesses to make the top of the leaderboard.
+              </p>
+              <p>
+                <span className="font-bold">Come back tomorrow</span> for a brand new puzzle!
+              </p>
+            </div>
           </div>
 
           {/* Start Game Button */}
