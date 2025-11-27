@@ -711,7 +711,7 @@ export default function Home() {
                   
                   if (isActorHint) {
                     // Extract actor names and make them bold and blue
-                    let formattedText = hintText
+                    let formattedText: string | React.ReactElement = hintText
                     
                     // For fourthAndFifthActors hint
                     if (hintText.includes('Danny probably doesn\'t know these actors')) {
