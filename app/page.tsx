@@ -271,10 +271,21 @@ export default function Home() {
     // Convert Roman numerals to Arabic
     normalized = romanToArabic(normalized)
     
+    // Remove punctuation
+    normalized = normalized.replace(/[^\w\s]/g, '')
+    
+    // Normalize whitespace
+    normalized = normalized.replace(/\s+/g, ' ')
+    
+    // Remove spaces between words and numbers (so "ghostbusters 2" and "ghostbusters2" both become "ghostbusters2")
+    // This handles: "word 2" -> "word2" and "2 word" -> "2word"
+    normalized = normalized.replace(/(\w)\s+(\d+)/g, '$1$2') // Remove space before number
+    normalized = normalized.replace(/(\d+)\s+(\w)/g, '$1$2') // Remove space after number
+    
+    // Final whitespace normalization
+    normalized = normalized.replace(/\s+/g, ' ').trim()
+    
     return normalized
-      .replace(/[^\w\s]/g, '') // Remove punctuation
-      .replace(/\s+/g, ' ') // Normalize whitespace
-      .trim()
   }
 
   const getHintText = (level: number): string | null => {
