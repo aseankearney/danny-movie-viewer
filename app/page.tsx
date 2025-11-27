@@ -284,19 +284,25 @@ export default function Home() {
       case 1:
         return movie.genre ? `This movie's genre is: ${movie.genre}` : null
       case 2:
-        return movie.runtime ? `This movie's runtime is: ${movie.runtime}` : null
+        // Danny's age when movie came out (Danny born in 1983)
+        if (movie.year) {
+          const movieYear = parseInt(movie.year)
+          const dannyAge = movieYear - 1983
+          return `Danny was ${dannyAge} years old when this movie came out.`
+        }
+        return null
       case 3:
         return movie.rated ? `This movie is rated: ${movie.rated}` : null
       case 4:
         if (movie.fourthAndFifthActors) {
-          return `This movie features ${movie.fourthAndFifthActors}`
+          return `Danny probably doesn't know these actors that were in this movie: ${movie.fourthAndFifthActors}`
         }
         // Fallback: try to get any actors from the movie data
         return null
       case 5:
-        return movie.director ? `This movie was directed by ${movie.director}` : null
+        return movie.director ? `Danny probably doesn't know that ${movie.director} directed this movie.` : null
       case 6:
-        return movie.firstActor ? `This movie stars ${movie.firstActor}` : null
+        return movie.firstActor ? `Danny definitely knows that ${movie.firstActor} starred in this movie.` : null
       case 7:
         // Return special marker for plot hint (needs special rendering)
         return movie.plotWithRedacted ? '__PLOT_HINT__' : null
@@ -464,7 +470,7 @@ export default function Home() {
       <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 p-4">
         <div className="max-w-2xl w-full bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-lg shadow-lg p-8 sm:p-12 text-center">
           {/* Title */}
-          <h1 className="text-4xl sm:text-5xl font-bold mb-8 text-gray-900 dark:text-white">
+          <h1 className="text-4xl sm:text-5xl font-bold mb-8 text-blue-600 dark:text-blue-400">
             Daily Danny Movie Trivia
           </h1>
 
@@ -487,9 +493,9 @@ export default function Home() {
               How To Play
             </h2>
             <ol className="text-sm sm:text-base text-gray-700 dark:text-gray-300 leading-relaxed space-y-2 text-left max-w-md mx-auto">
-              <li>1. Danny has seen all of these movies.</li>
-              <li>2. Guess the movie in as few guesses as possible.</li>
-              <li>3. New puzzle every day!</li>
+              <li>1. Try and guess the title of a movie that Danny has seen in the least amount of guesses.</li>
+              <li>2. Do it in the least amount of guesses to make the leaderboard.</li>
+              <li>3. Come back tomorrow for a new puzzle!</li>
             </ol>
           </div>
 
@@ -508,7 +514,7 @@ export default function Home() {
   return (
     <main className="min-h-screen p-4 sm:p-8 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
       <div className="max-w-2xl mx-auto">
-        <h1 className="text-3xl sm:text-4xl font-bold text-center mb-8 text-gray-900 dark:text-white">
+        <h1 className="text-3xl sm:text-4xl font-bold text-center mb-8 text-blue-600 dark:text-blue-400">
           The Daily Danny Movie Game
         </h1>
 
@@ -558,14 +564,19 @@ export default function Home() {
                   const hintText = getHintText(hintLevel)
                   if (!hintText) return null
                   
-                  // Special handling for plot hint (hint 5)
+                  // Special handling for plot hint (hint 7)
                   if (hintText === '__PLOT_HINT__' && movie.plotWithRedacted) {
+                    const plotPrefix = movie.status === 'Seen-Liked' 
+                      ? "Hey fools, just saw a great movie! "
+                      : "Hey fools, this movie was stupid. It was about "
+                    
                     return (
                       <div
                         key={hintLevel}
                         className="text-center"
                       >
                         <div className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">
+                          Danny would describe this movie like this: {plotPrefix}
                           {movie.plotWithRedacted.map((segment, idx) => (
                             <span
                               key={idx}
