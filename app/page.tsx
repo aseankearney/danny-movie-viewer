@@ -461,12 +461,12 @@ export default function Home() {
 
           {/* Danny's Photo */}
           <div className="flex justify-center mb-8">
-            <div className="relative w-48 h-48 sm:w-64 sm:h-64 rounded-full overflow-hidden border-4 border-blue-500 shadow-lg">
+            <div className="relative w-48 h-48 sm:w-64 sm:h-64">
               <Image
                 src="/danny-head.png"
                 alt="Danny"
                 fill
-                className="object-cover"
+                className="object-contain animate-rotate-head"
                 priority
               />
             </div>
