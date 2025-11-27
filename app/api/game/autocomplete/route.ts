@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import { searchTMDbMovies, getTMDbMoviesByLetter } from '@/lib/tmdb'
 
+// Mark this route as dynamic since it uses request.url
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: Request) {
   try {
     if (!process.env.TMDB_API_KEY) {

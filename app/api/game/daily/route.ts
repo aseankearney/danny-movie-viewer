@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { getTMDbMovieDetailsByIMDbId } from '@/lib/tmdb'
 import { removeNamesFromPlot, replaceProperNounsWithRedacted } from '@/lib/plotUtils'
 
+// Mark this route as dynamic since it uses database and external APIs
+export const dynamic = 'force-dynamic'
 // Increase timeout for this route (Vercel free tier is 10s, pro is 60s)
 export const maxDuration = 25
 

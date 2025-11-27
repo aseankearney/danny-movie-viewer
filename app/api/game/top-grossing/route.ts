@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import { getTopGrossingMoviesByYear } from '@/lib/tmdb'
 
+// Mark this route as dynamic since it uses external APIs
+export const dynamic = 'force-dynamic'
+
 // Cache for top-grossing movie titles (in-memory, resets on server restart)
 let topGrossingTitlesCache: string[] | null = null
 let cacheTimestamp: number = 0
