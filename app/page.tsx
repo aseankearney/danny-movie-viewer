@@ -630,12 +630,9 @@ export default function Home() {
                 const movieYear = parseInt(movie.year)
                 const dannyAge = movieYear - 1983
                 return (
-                  <>
-                    <div className="text-2xl sm:text-3xl font-semibold text-gray-900 dark:text-white mb-2">
-                      Danny was {dannyAge} years old when this movie was released.
-                    </div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">({movie.year})</div>
-                  </>
+                  <div className="text-2xl sm:text-3xl font-semibold text-gray-900 dark:text-white mb-2">
+                    Danny was {dannyAge} years old when this movie was released.
+                  </div>
                 )
               })() : (
                 <div className="text-2xl sm:text-3xl font-semibold text-gray-900 dark:text-white mb-2">
