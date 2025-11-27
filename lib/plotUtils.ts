@@ -85,24 +85,27 @@ export function replaceProperNounsWithRedacted(plot: string): Array<{ text: stri
         continue
       }
 
-      // Extract word without punctuation for checking (but preserve parentheses content)
-      // Handle words like "Patch" in "(Patch)"
+      // Extract word without punctuation for checking (but preserve parentheses and quotes content)
+      // Handle words like "Patch" in "(Patch)" or "Patch" in quotes
       const wordMatch = word.match(/^([^.,!?;:\[\]{}'"]+)(.*)$/)
       const baseWord = wordMatch ? wordMatch[1] : word
       const punctuation = wordMatch ? wordMatch[2] : ''
       
       // Check if word is in parentheses - if so, treat the content as a potential proper noun
       const parenMatch = word.match(/^\(([^)]+)\)$/)
-      const wordToCheck = parenMatch ? parenMatch[1] : baseWord
+      // Check if word is in quotes - if so, treat the content as a potential proper noun
+      const quoteMatch = word.match(/^["']([^"']+)["']$/)
+      const wordToCheck = parenMatch ? parenMatch[1] : (quoteMatch ? quoteMatch[1] : baseWord)
       const lowerWord = wordToCheck.toLowerCase()
+      const isInQuotes = quoteMatch !== null
 
       // Check if it's a proper noun: capitalized word that's not at start of sentence (unless it's a common word)
-      // Also check words in parentheses
+      // Also check words in parentheses or quotes
       // Also check if it's in the always-redact list (like character names)
       const isCapitalized = /^[A-Z]/.test(wordToCheck)
       const isInParens = parenMatch !== null
       const shouldAlwaysRedact = alwaysRedact.has(lowerWord)
-      const isProperNoun = shouldAlwaysRedact || (isCapitalized && (!isFirstWord || (wordToCheck.length > 1 && !commonWords.has(lowerWord))) || (isInParens && isCapitalized))
+      const isProperNoun = shouldAlwaysRedact || (isCapitalized && (!isFirstWord || (wordToCheck.length > 1 && !commonWords.has(lowerWord))) || (isInParens && isCapitalized) || (isInQuotes && isCapitalized))
 
       if (isProperNoun) {
         // Start or continue redacted segment
@@ -115,8 +118,13 @@ export function replaceProperNounsWithRedacted(plot: string): Array<{ text: stri
         }
         // Replace the word with REDACTED
         // If it's in parentheses like "(Patch)", replace with "(REDACTED)"
+        // If it's in quotes like "Patch", replace with "REDACTED"
         if (isInParens) {
           currentSegment += '(REDACTED)'
+        } else if (isInQuotes) {
+          // Get the quote character used
+          const quoteChar = word.startsWith('"') ? '"' : (word.startsWith("'") ? "'" : '"')
+          currentSegment += quoteChar + 'REDACTED' + quoteChar
         } else {
           // For regular words, replace with REDACTED + punctuation
           if (!currentSegment.includes('REDACTED')) {
