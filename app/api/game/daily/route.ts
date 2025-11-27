@@ -4,8 +4,8 @@ import { removeNamesFromPlot, replaceProperNounsWithRedacted } from '@/lib/plotU
 
 // Mark this route as dynamic since it uses database and external APIs
 export const dynamic = 'force-dynamic'
-// Increase timeout for this route (Vercel free tier is 10s, pro is 60s)
-export const maxDuration = 25
+// Vercel free tier timeout is 10s, so we need to work within that limit
+export const maxDuration = 10
 
 export async function GET() {
   const startTime = Date.now()
@@ -65,8 +65,8 @@ export async function GET() {
       const movieId = String(movie.movie_id)
       const elapsed = Date.now() - startTime
       
-      // If we've been running for more than 20 seconds, give up
-      if (elapsed > 20000) {
+      // If we've been running for more than 8 seconds, give up (Vercel free tier is 10s)
+      if (elapsed > 8000) {
         console.warn(`[Daily Movie API] Timeout after ${elapsed}ms, stopping`)
         lastError = 'Request took too long. TMDb API may be slow or rate-limited.'
         break

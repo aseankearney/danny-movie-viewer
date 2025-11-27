@@ -124,13 +124,18 @@ export default function Home() {
     try {
       console.log('Starting to load daily movie...')
       
-      // Use Promise.race for more reliable timeout
-      const fetchPromise = fetch('/api/game/daily')
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Request timeout after 20 seconds')), 20000)
+      // Use AbortController for more reliable timeout (10 seconds - Vercel free tier limit)
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => {
+        console.warn('Request timeout - aborting fetch')
+        controller.abort()
+      }, 10000)
+      
+      const response = await fetch('/api/game/daily', {
+        signal: controller.signal
       })
       
-      const response = await Promise.race([fetchPromise, timeoutPromise])
+      clearTimeout(timeoutId)
       console.log('Got response:', response.status)
       
       if (!response.ok) {
@@ -159,8 +164,8 @@ export default function Home() {
       console.log('Movie loaded successfully')
     } catch (error: any) {
       console.error('Error loading movie:', error)
-      if (error.message && error.message.includes('timeout')) {
-        setError('Request timed out. The TMDb API may be slow or rate-limited. Please try again in a moment.')
+      if (error.name === 'AbortError' || error.message?.includes('timeout') || error.message?.includes('abort')) {
+        setError('Request timed out after 10 seconds. The TMDb API may be slow or rate-limited. Please try refreshing the page.')
       } else {
         setError(`Failed to fetch movies: ${error.message || 'Please check your connection and try again.'}`)
       }
@@ -177,14 +182,14 @@ export default function Home() {
     }
   }, [gameStarted, movie, loadDailyMovie, loading])
 
-  // Fallback timeout: if loading takes more than 25 seconds, show error
+  // Fallback timeout: if loading takes more than 12 seconds, show error
   useEffect(() => {
     if (loading && gameStarted) {
       const timeoutId = setTimeout(() => {
-        console.error('Loading timeout - taking too long')
-        setError('The puzzle is taking too long to load. This might be due to TMDb API rate limits. Please try refreshing the page in a few moments.')
+        console.error('Loading timeout - taking too long (fallback)')
+        setError('The puzzle is taking too long to load. This might be due to TMDb API rate limits or network issues. Please try refreshing the page.')
         setLoading(false)
-      }, 25000)
+      }, 12000)
       
       return () => clearTimeout(timeoutId)
     }
@@ -477,7 +482,10 @@ export default function Home() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
-        <div className="text-xl text-gray-900 dark:text-white">Loading today's puzzle...</div>
+        <div className="text-center">
+          <div className="text-xl text-gray-900 dark:text-white mb-4">Loading today's puzzle...</div>
+          <div className="text-sm text-gray-500 dark:text-gray-400">This may take a few seconds</div>
+        </div>
       </div>
     )
   }
@@ -497,12 +505,29 @@ export default function Home() {
               The game needs movies that Danny has marked as "Seen-Liked" or "Seen-Hated" to work.
             </p>
           )}
-          <button
-            onClick={loadDailyMovie}
-            className="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-semibold touch-manipulation"
-          >
-            Try Again
-          </button>
+          <div className="space-y-2">
+            <button
+              onClick={() => {
+                setError(null)
+                setLoading(true)
+                loadDailyMovie()
+              }}
+              className="w-full px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-semibold touch-manipulation"
+            >
+              Try Again
+            </button>
+            {error && (
+              <button
+                onClick={() => {
+                  setError(null)
+                  setGameStarted(false)
+                }}
+                className="w-full px-6 py-3 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-semibold touch-manipulation"
+              >
+                Back to Landing Page
+              </button>
+            )}
+          </div>
         </div>
       </div>
     )
