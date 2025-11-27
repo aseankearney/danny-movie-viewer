@@ -537,7 +537,7 @@ export default function Home() {
       ctx.fillText(mainText, canvas.width / 2, 100)
 
       // Load Danny head image
-      const dannyHeadImg = document.createElement('img')
+      const dannyHeadImg = document.createElement('img') as HTMLImageElement
       dannyHeadImg.crossOrigin = 'anonymous'
       
       await new Promise((resolve, reject) => {
