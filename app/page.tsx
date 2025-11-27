@@ -147,7 +147,16 @@ export default function Home() {
         const errorData = await response.json()
         console.error(`[loadDailyMovie] API error (${response.status}):`, errorData)
         
-        // Don't retry on 404 (no movies) - that's a real error
+        // On first attempt, retry 404s too (database might need to warm up)
+        if (response.status === 404 && retryCount === 0) {
+          console.log('[loadDailyMovie] Got 404 on first attempt, retrying after 1500ms (database warm-up)...')
+          setTimeout(() => {
+            loadDailyMovie(1)
+          }, 1500)
+          return
+        }
+        
+        // On subsequent attempts or other status codes, show error
         if (response.status === 404) {
           setError(errorData.error || 'No movies available')
           setMovie(null)
@@ -180,13 +189,13 @@ export default function Home() {
     } catch (error: any) {
       console.error(`[loadDailyMovie] Error on attempt ${retryCount + 1}:`, error)
       
-      // Auto-retry once if it's the first attempt and not a timeout or 404 (404 means no movies, don't retry)
-      const is404 = error.message?.includes('404') || error.message?.includes('No movies')
-      if (retryCount === 0 && error.name !== 'AbortError' && !error.message?.includes('timeout') && !is404) {
-        console.log('[loadDailyMovie] Retrying after 1000ms...')
+      // Auto-retry once if it's the first attempt and not a timeout
+      // (404s are now handled above, so we can retry other errors)
+      if (retryCount === 0 && error.name !== 'AbortError' && !error.message?.includes('timeout')) {
+        console.log('[loadDailyMovie] Retrying after 1500ms (network/database warm-up)...')
         setTimeout(() => {
           loadDailyMovie(1)
-        }, 1000)
+        }, 1500)
         return
       }
       
