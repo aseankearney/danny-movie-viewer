@@ -25,6 +25,7 @@ npm install
 2. Create a `.env.local` file in the root directory:
 ```
 DATABASE_URL=postgresql://username:password@hostname/database?sslmode=require
+TMDB_API_KEY=your_tmdb_api_key_here
 ```
 (Use the same DATABASE_URL as your tracker app)
 

@@ -54,11 +54,11 @@ export default function Home() {
   const autocompleteTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
-    // Load all movie titles from OMDb (as fallback)
+    // Load all movie titles from TMDb (as fallback)
     const loadAllTitles = async () => {
       setLoadingTitles(true)
       try {
-        // Get comprehensive list from OMDb (cached)
+        // Get comprehensive list from TMDb (cached)
         const response = await fetch('/api/game/titles')
         const data = await response.json()
         if (data.titles && Array.isArray(data.titles)) {
@@ -154,59 +154,52 @@ export default function Home() {
     
     if (value.length >= 1) {
       setShowSuggestions(true)
-      setLoadingAutocomplete(true) // Show loading immediately
+      setLoadingAutocomplete(true)
       
-      // Debounce the autocomplete search to avoid too many API calls
-      autocompleteTimeoutRef.current = setTimeout(async () => {
+      autocompleteTimeoutRef.current = setTimeout(() => {
+        const valueLower = value.toLowerCase()
         
-        try {
-          // Real-time OMDb search - simplified and direct
-          const response = await fetch(`/api/game/autocomplete?q=${encodeURIComponent(value)}`)
-          
-          if (!response.ok) {
-            console.error('Autocomplete API error:', response.status, response.statusText)
-            setSuggestions([])
-            setShowSuggestions(false)
-            setLoadingAutocomplete(false)
-            return
-          }
-          
-          const data = await response.json()
-          console.log('Autocomplete response:', data)
-          
-          let suggestions: string[] = []
-          
-          if (data.suggestions && Array.isArray(data.suggestions)) {
-            suggestions = data.suggestions
-          }
-          
-          console.log(`Got ${suggestions.length} suggestions for "${value}"`)
-          
-          // Ensure the correct movie is included if it matches
-          const valueLower = value.toLowerCase()
-          if (movie?.title && 
-              movie.title.toLowerCase().includes(valueLower) && 
-              !suggestions.some(t => t.toLowerCase() === movie.title!.toLowerCase())) {
-            suggestions = [movie.title, ...suggestions]
-          }
-          
-          // Remove duplicates
-          const uniqueSuggestions = Array.from(new Set(suggestions))
-          console.log(`Setting ${uniqueSuggestions.length} unique suggestions`)
-          setSuggestions(uniqueSuggestions)
-          setShowSuggestions(uniqueSuggestions.length > 0)
-        } catch (error) {
-          console.error('Error fetching autocomplete from OMDb:', error)
+        if (allMovieTitles.length === 0) {
           setSuggestions([])
           setShowSuggestions(false)
-        } finally {
           setLoadingAutocomplete(false)
+          return
         }
-      }, 250) // Debounce delay
+
+        let suggestions = allMovieTitles.filter(title =>
+          title.toLowerCase().includes(valueLower)
+        )
+
+        suggestions = suggestions.sort((a, b) => {
+          const aLower = a.toLowerCase()
+          const bLower = b.toLowerCase()
+          const aStarts = aLower.startsWith(valueLower)
+          const bStarts = bLower.startsWith(valueLower)
+          if (aStarts && !bStarts) return -1
+          if (!aStarts && bStarts) return 1
+          const aIndex = aLower.indexOf(valueLower)
+          const bIndex = bLower.indexOf(valueLower)
+          if (aIndex !== bIndex) return aIndex - bIndex
+          return a.length - b.length
+        })
+
+        if (
+          movie?.title &&
+          movie.title.toLowerCase().includes(valueLower) &&
+          !suggestions.some(t => t.toLowerCase() === movie.title!.toLowerCase())
+        ) {
+          suggestions = [movie.title, ...suggestions]
+        }
+
+        const uniqueSuggestions = Array.from(new Set(suggestions))
+        setSuggestions(uniqueSuggestions.slice(0, 50))
+        setShowSuggestions(uniqueSuggestions.length > 0)
+        setLoadingAutocomplete(false)
+      }, 200)
     } else if (value.length === 0) {
-      // Show initial suggestions - try to get some popular movies by letter
       setShowSuggestions(false)
       setSuggestions([])
+      setLoadingAutocomplete(false)
     }
   }
 
@@ -459,10 +452,10 @@ export default function Home() {
 
         {gameState === 'playing' && movie && (
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 sm:p-8 relative">
-            {/* Hints Used Counter - Top Right */}
+            {/* Guesses Used Counter - Top Right */}
             <div className="absolute top-4 right-4 bg-blue-100 dark:bg-blue-900/30 border-2 border-blue-300 dark:border-blue-700 rounded-lg px-3 py-1.5 sm:px-4 sm:py-2 shadow-md z-10">
               <div className="text-base sm:text-lg md:text-xl font-bold text-blue-800 dark:text-blue-200">
-                Hints Used: {hintsUsed}
+                Guesses Used: {hintsUsed}
               </div>
             </div>
 
@@ -603,7 +596,7 @@ export default function Home() {
                 🎉 You Got It Right! 🎉
               </div>
               <div className="text-2xl sm:text-3xl font-semibold text-gray-700 dark:text-gray-300 mt-2">
-                In {hintsUsed} {hintsUsed === 1 ? 'Hint' : 'Hints'}!
+                In {hintsUsed} {hintsUsed === 1 ? 'Guess' : 'Guesses'}!
               </div>
             </div>
 
@@ -713,7 +706,7 @@ export default function Home() {
                       </span>
                     </div>
                     <span className="text-xl font-semibold text-blue-600 dark:text-blue-400">
-                      {entry.hintsUsed} {entry.hintsUsed === 1 ? 'Hint' : 'Hints'}
+                      {entry.hintsUsed} {entry.hintsUsed === 1 ? 'Guess' : 'Guesses'}
                     </span>
                   </div>
                 ))}

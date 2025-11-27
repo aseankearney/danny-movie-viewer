@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getRandomMovieFromLikedOrHated } from '@/lib/db'
-import { getMovieByIMDbId } from '@/lib/omdb'
+import { getTMDbMovieDetailsByIMDbId } from '@/lib/tmdb'
 
 export async function GET() {
   try {
@@ -22,36 +22,31 @@ export async function GET() {
       )
     }
 
-    // Try to fetch movie details from OMDb
     const movieId = String(movieStatus.movieId)
-    let movieDetails = null
-    
-    if (movieId.startsWith('tt')) {
-      movieDetails = await getMovieByIMDbId(movieId)
-    }
+    const movieDetails = movieId.startsWith('tt')
+      ? await getTMDbMovieDetailsByIMDbId(movieId)
+      : null
 
-    // Parse actors to get first, fourth, and fifth billed
-    const actors = movieDetails?.Actors ? movieDetails.Actors.split(',').map(a => a.trim()) : []
-    const firstActor = actors[0] || null
-    const fourthActor = actors[3] || null
-    const fifthActor = actors[4] || null
-    const fourthAndFifth = fourthActor && fifthActor 
-      ? `${fourthActor} and ${fifthActor}`
-      : fourthActor || fifthActor || null
+    if (!movieDetails) {
+      return NextResponse.json(
+        { error: `Failed to fetch movie details for ${movieId} from TMDb.` },
+        { status: 404 }
+      )
+    }
 
     return NextResponse.json({
       movieId: movieStatus.movieId,
       status: movieStatus.status,
-      year: movieDetails?.Year || null,
-      title: movieDetails?.Title || null,
-      poster: movieDetails?.Poster || null,
-      plot: movieDetails?.Plot || null,
-      genre: movieDetails?.Genre || null,
-      rated: movieDetails?.Rated || null,
-      runtime: movieDetails?.Runtime || null,
-      director: movieDetails?.Director || null,
-      firstActor: firstActor,
-      fourthAndFifthActors: fourthAndFifth,
+      year: movieDetails.year,
+      title: movieDetails.title,
+      poster: movieDetails.poster,
+      plot: movieDetails.plot,
+      genre: movieDetails.genre,
+      rated: movieDetails.rated,
+      runtime: movieDetails.runtime,
+      director: movieDetails.director,
+      firstActor: movieDetails.firstActor,
+      fourthAndFifthActors: movieDetails.fourthAndFifthActors,
     })
   } catch (error: any) {
     console.error('Error fetching random movie:', error)

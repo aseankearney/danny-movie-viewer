@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getMoviesByStatus } from '@/lib/db'
-import { getMovieByIMDbId } from '@/lib/omdb'
+import { getTMDbMovieDetailsByIMDbId } from '@/lib/tmdb'
 
 export async function GET(request: Request) {
   try {
@@ -23,24 +23,20 @@ export async function GET(request: Request) {
 
     const movies = await getMoviesByStatus(status)
     
-    // Try to fetch movie details from OMDb for each movie
+    // Fetch movie details from TMDb for each movie
     const moviesWithDetails = await Promise.all(
       movies.map(async (movie) => {
         // Try to extract IMDb ID from movie_id (it might be an IMDb ID or a generated ID)
         const movieId = String(movie.movieId)
-        let omdbData = null
-        
-        // If it looks like an IMDb ID (starts with tt), fetch from OMDb
-        if (movieId.startsWith('tt')) {
-          omdbData = await getMovieByIMDbId(movieId)
-        }
+        const tmdbData =
+          movieId.startsWith('tt') ? await getTMDbMovieDetailsByIMDbId(movieId) : null
         
         return {
           ...movie,
-          title: omdbData?.Title || `Movie ID: ${movieId}`,
-          year: omdbData?.Year || null,
-          poster: omdbData?.Poster || null,
-          plot: omdbData?.Plot || null,
+          title: tmdbData?.title || `Movie ID: ${movieId}`,
+          year: tmdbData?.year || null,
+          poster: tmdbData?.poster || null,
+          plot: tmdbData?.plot || null,
         }
       })
     )

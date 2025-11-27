@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
-import { getDailyMovie } from '@/lib/db'
-import { getMovieByIMDbId } from '@/lib/omdb'
-import { removeNamesFromPlot, extractAcademyAwards, replaceProperNounsWithRedacted } from '@/lib/plotUtils'
+import { getTMDbMovieDetailsByIMDbId } from '@/lib/tmdb'
+import { removeNamesFromPlot, replaceProperNounsWithRedacted } from '@/lib/plotUtils'
 
 export async function GET() {
   try {
@@ -12,7 +11,7 @@ export async function GET() {
       )
     }
 
-    // For demo: just get the first movie marked as Seen-Liked or Seen-Hated
+    // For demo: fetch the most recent movies marked as Seen-Liked or Seen-Hated and pick the first one with TMDb data
     const { neon } = await import('@neondatabase/serverless')
     const sql = neon(process.env.DATABASE_URL!)
     
@@ -21,7 +20,7 @@ export async function GET() {
       FROM movie_statuses
       WHERE status IN ('Seen-Liked', 'Seen-Hated')
       ORDER BY updated_at DESC
-      LIMIT 1
+      LIMIT 15
     `
     
     if (movies.length === 0) {
@@ -33,87 +32,66 @@ export async function GET() {
       )
     }
     
-    const movie = movies[0]
-    const movieStatus = {
-      movieId: movie.movie_id,
-      status: movie.status as 'Seen-Liked' | 'Seen-Hated',
-      updatedAt: movie.updated_at instanceof Date 
-        ? movie.updated_at.toISOString() 
-        : new Date(movie.updated_at).toISOString(),
-    }
-    
-    const today = new Date().toISOString().split('T')[0]
-
-    // Try to fetch movie details from OMDb
-    const movieId = String(movieStatus.movieId)
+    let movieStatus = null
     let movieDetails = null
     
-    if (movieId.startsWith('tt')) {
-      movieDetails = await getMovieByIMDbId(movieId)
+    for (const movie of movies) {
+      const movieId = String(movie.movie_id)
+      if (!movieId.startsWith('tt')) continue
+      
+      const tmdbDetails = await getTMDbMovieDetailsByIMDbId(movieId)
+      if (tmdbDetails) {
+        movieStatus = {
+          movieId: movie.movie_id,
+          status: movie.status as 'Seen-Liked' | 'Seen-Hated',
+          updatedAt: movie.updated_at instanceof Date 
+            ? movie.updated_at.toISOString() 
+            : new Date(movie.updated_at).toISOString(),
+        }
+        movieDetails = tmdbDetails
+        break
+      }
     }
-
-    if (!movieDetails || !movieDetails.Title) {
+    
+    if (!movieStatus || !movieDetails) {
       return NextResponse.json(
         { 
-          error: `Failed to fetch movie details for ${movieId}. The movie may not exist in OMDb.` 
+          error: 'Failed to fetch movie details from TMDb. Please ensure the tracker has entries with valid IMDb IDs.' 
         },
         { status: 404 }
       )
     }
+    
+    const today = new Date().toISOString().split('T')[0]
 
-    // Parse actors to get first, fourth, and fifth billed
-    const actors = movieDetails?.Actors ? movieDetails.Actors.split(',').map(a => a.trim()) : []
-    const firstActor = actors[0] || null
-    const fourthActor = actors[3] || null
-    const fifthActor = actors[4] || null
-    // For hint 5, we want fourth and fifth billed actors
-    // If we have both, show both. If only one, show that one. If neither, show a message.
-    let fourthAndFifth: string | null = null
-    if (fourthActor && fifthActor) {
-      fourthAndFifth = `${fourthActor} and ${fifthActor}`
-    } else if (fourthActor) {
-      fourthAndFifth = fourthActor
-    } else if (fifthActor) {
-      fourthAndFifth = fifthActor
-    } else if (actors.length >= 4) {
-      // If we have at least 4 actors but not the 4th/5th, use the last two
-      const lastTwo = actors.slice(-2)
-      if (lastTwo.length === 2) {
-        fourthAndFifth = `${lastTwo[0]} and ${lastTwo[1]}`
-      } else if (lastTwo.length === 1) {
-        fourthAndFifth = lastTwo[0]
-      }
-    }
-
-    // Process plot to remove names and replace proper nouns with REDACTED
-    const plotWithoutNames = movieDetails?.Plot
-      ? removeNamesFromPlot(movieDetails.Plot, movieDetails.Actors || null, movieDetails.Director || null)
+    const plotWithoutNames = movieDetails.plot
+      ? removeNamesFromPlot(
+          movieDetails.plot,
+          movieDetails.actorsText,
+          movieDetails.director
+        )
       : null
     
-    // Create plot with proper nouns replaced (for hint display)
     const plotWithRedacted = plotWithoutNames
       ? replaceProperNounsWithRedacted(plotWithoutNames)
       : null
 
-    // Extract Academy Awards
-    const academyAwards = extractAcademyAwards(movieDetails?.Awards || null)
-
     return NextResponse.json({
       movieId: movieStatus.movieId,
       status: movieStatus.status,
-      year: movieDetails?.Year || null,
-      title: movieDetails?.Title || null,
-      poster: movieDetails?.Poster || null,
-      plot: movieDetails?.Plot || null,
-      genre: movieDetails?.Genre || null,
-      rated: movieDetails?.Rated || null,
-      runtime: movieDetails?.Runtime || null,
-      director: movieDetails?.Director || null,
-      firstActor: firstActor,
-      fourthAndFifthActors: fourthAndFifth,
+      year: movieDetails.year,
+      title: movieDetails.title,
+      poster: movieDetails.poster,
+      plot: movieDetails.plot,
+      genre: movieDetails.genre,
+      rated: movieDetails.rated,
+      runtime: movieDetails.runtime,
+      director: movieDetails.director,
+      firstActor: movieDetails.firstActor,
+      fourthAndFifthActors: movieDetails.fourthAndFifthActors,
       plotWithoutNames: plotWithoutNames,
       plotWithRedacted: plotWithRedacted,
-      academyAwards: academyAwards,
+      academyAwards: movieDetails.academyAwards,
       puzzleDate: today,
     })
   } catch (error: any) {
