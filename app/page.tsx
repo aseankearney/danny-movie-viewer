@@ -381,6 +381,10 @@ export default function Home() {
 
     const hasAnswer = userAnswer.trim().length > 0
 
+    // Increment guess count for any action (no clue, wrong, or correct)
+    const nextGuessCount = guessCount + 1
+    setGuessCount(nextGuessCount)
+
     // If "No Clue" was pressed (empty answer)
     if (!hasAnswer) {
       if (hintsUsed >= 6) {
@@ -396,9 +400,6 @@ export default function Home() {
       setWrongMessage(null) // Remove the "No clue used" message
       return
     }
-
-    const nextGuessCount = guessCount + 1
-    setGuessCount(nextGuessCount)
 
     // Check if answer is correct
     const normalizedUserAnswer = normalizeTitle(userAnswer)
@@ -609,10 +610,10 @@ export default function Home() {
 
         {gameState === 'playing' && movie && (
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 sm:p-8 relative">
-            {/* Guesses Used Counter - Top Right */}
-            <div className="absolute top-4 right-4 bg-blue-100 dark:bg-blue-900/30 border-2 border-blue-300 dark:border-blue-700 rounded-lg px-3 py-1.5 sm:px-4 sm:py-2 shadow-md z-10">
+            {/* Guesses Counter - Top Center */}
+            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-blue-100 dark:bg-blue-900/30 border-2 border-blue-300 dark:border-blue-700 rounded-lg px-3 py-1.5 sm:px-4 sm:py-2 shadow-md z-10">
               <div className="text-base sm:text-lg md:text-xl font-bold text-blue-800 dark:text-blue-200">
-                Guesses Used: {guessCount}
+                Guesses: {guessCount}
               </div>
             </div>
 
@@ -622,12 +623,12 @@ export default function Home() {
                 const movieYear = parseInt(movie.year)
                 const dannyAge = movieYear - 1983
                 return (
-                  <div className="text-2xl sm:text-3xl font-semibold text-gray-900 dark:text-white mb-2">
+                  <div className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white mb-2">
                     Danny was {dannyAge} years old when this movie was released.
                   </div>
                 )
               })() : (
-                <div className="text-2xl sm:text-3xl font-semibold text-gray-900 dark:text-white mb-2">
+                <div className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white mb-2">
                   Year unknown
                 </div>
               )}
