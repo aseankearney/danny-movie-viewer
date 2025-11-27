@@ -521,22 +521,33 @@ export default function Home() {
       canvas.width = 800
       canvas.height = 600
 
-      // Background gradient
-      const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height)
-      gradient.addColorStop(0, '#f0fdf4')
-      gradient.addColorStop(1, '#dcfce7')
+      // Create exciting multi-color gradient background
+      const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height)
+      gradient.addColorStop(0, '#3b82f6') // blue-500
+      gradient.addColorStop(0.25, '#8b5cf6') // purple-500
+      gradient.addColorStop(0.5, '#ec4899') // pink-500
+      gradient.addColorStop(0.75, '#f59e0b') // amber-500
+      gradient.addColorStop(1, '#10b981') // emerald-500
       ctx.fillStyle = gradient
       ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-      // Draw main text first (at the top)
-      ctx.fillStyle = '#16a34a' // green-600
-      ctx.font = 'bold 48px Arial'
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'top'
-      const mainText = `I got a Daily Danny in ${guessCount} ${guessCount === 1 ? 'Guess' : 'Guesses'}!`
-      ctx.fillText(mainText, canvas.width / 2, 100)
+      // Add a subtle pattern overlay for more visual interest
+      ctx.globalAlpha = 0.1
+      for (let i = 0; i < 20; i++) {
+        ctx.fillStyle = '#ffffff'
+        ctx.beginPath()
+        ctx.arc(
+          Math.random() * canvas.width,
+          Math.random() * canvas.height,
+          Math.random() * 30 + 10,
+          0,
+          Math.PI * 2
+        )
+        ctx.fill()
+      }
+      ctx.globalAlpha = 1.0
 
-      // Load Danny head image
+      // Load Danny head image first to get dimensions
       const dannyHeadImg = document.createElement('img') as HTMLImageElement
       dannyHeadImg.crossOrigin = 'anonymous'
       
@@ -546,11 +557,38 @@ export default function Home() {
         dannyHeadImg.src = '/danny-head.png'
       })
 
-      // Draw Danny head centered below the text
-      const headSize = 300
-      const headX = (canvas.width - headSize) / 2
-      const headY = 250
-      ctx.drawImage(dannyHeadImg, headX, headY, headSize, headSize)
+      // Draw main text first (at the top)
+      ctx.fillStyle = '#ffffff' // white text for contrast
+      ctx.font = 'bold 48px Arial'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'top'
+      // Add text shadow for better readability
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.5)'
+      ctx.shadowBlur = 10
+      ctx.shadowOffsetX = 2
+      ctx.shadowOffsetY = 2
+      const mainText = `I got a Daily Danny in ${guessCount} ${guessCount === 1 ? 'Guess' : 'Guesses'}!`
+      ctx.fillText(mainText, canvas.width / 2, 80)
+
+      // Calculate proper size maintaining aspect ratio
+      const maxHeadSize = 280
+      const imgAspectRatio = dannyHeadImg.naturalWidth / dannyHeadImg.naturalHeight
+      let headWidth = maxHeadSize
+      let headHeight = maxHeadSize
+      
+      if (imgAspectRatio > 1) {
+        // Image is wider than tall
+        headHeight = maxHeadSize / imgAspectRatio
+      } else {
+        // Image is taller than wide
+        headWidth = maxHeadSize * imgAspectRatio
+      }
+
+      // Draw Danny head centered below the text, maintaining aspect ratio
+      const headX = (canvas.width - headWidth) / 2
+      const headY = 220
+      ctx.shadowBlur = 0 // Reset shadow for image
+      ctx.drawImage(dannyHeadImg, headX, headY, headWidth, headHeight)
 
       // Convert to blob
       canvas.toBlob(async (blob) => {
