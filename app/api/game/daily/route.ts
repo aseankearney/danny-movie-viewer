@@ -12,15 +12,19 @@ export async function GET() {
       )
     }
 
-    // Get today's date in YYYY-MM-DD format (UTC)
-    const now = new Date()
-    const today = now.toISOString().split('T')[0]
+    // For demo: just get the first movie marked as Seen-Liked or Seen-Hated
+    const { neon } = await import('@neondatabase/serverless')
+    const sql = neon(process.env.DATABASE_URL!)
     
-    console.log(`Fetching daily puzzle for date: ${today}`)
-
-    const movieStatus = await getDailyMovie(today)
+    const movies = await sql`
+      SELECT movie_id, status, updated_at
+      FROM movie_statuses
+      WHERE status IN ('Seen-Liked', 'Seen-Hated')
+      ORDER BY updated_at DESC
+      LIMIT 1
+    `
     
-    if (!movieStatus) {
+    if (movies.length === 0) {
       return NextResponse.json(
         { 
           error: 'No movies available. Danny needs to review some movies in the tracker app first! The game needs movies marked as "Seen-Liked" or "Seen-Hated".' 
@@ -28,6 +32,17 @@ export async function GET() {
         { status: 404 }
       )
     }
+    
+    const movie = movies[0]
+    const movieStatus = {
+      movieId: movie.movie_id,
+      status: movie.status as 'Seen-Liked' | 'Seen-Hated',
+      updatedAt: movie.updated_at instanceof Date 
+        ? movie.updated_at.toISOString() 
+        : new Date(movie.updated_at).toISOString(),
+    }
+    
+    const today = new Date().toISOString().split('T')[0]
 
     // Try to fetch movie details from OMDb
     const movieId = String(movieStatus.movieId)
