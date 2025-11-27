@@ -122,25 +122,31 @@ export default function Home() {
     setLeaderboardSubmitted(false)
     
     try {
-      // Add timeout to fetch (15 seconds)
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 15000)
+      console.log('Starting to load daily movie...')
       
-      const response = await fetch('/api/game/daily', {
-        signal: controller.signal
+      // Use Promise.race for more reliable timeout
+      const fetchPromise = fetch('/api/game/daily')
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Request timeout after 20 seconds')), 20000)
       })
-      clearTimeout(timeoutId)
       
-      const data = await response.json()
+      const response = await Promise.race([fetchPromise, timeoutPromise])
+      console.log('Got response:', response.status)
       
       if (!response.ok) {
-        setError(data.error || 'Failed to load movie')
+        const errorData = await response.json()
+        console.error('API error:', errorData)
+        setError(errorData.error || 'Failed to load movie')
         setMovie(null)
         setLoading(false)
         return
       }
       
+      const data = await response.json()
+      console.log('Got movie data:', data.title || 'No title')
+      
       if (data.error) {
+        console.error('Data error:', data.error)
         setError(data.error)
         setMovie(null)
         setLoading(false)
@@ -150,12 +156,13 @@ export default function Home() {
       setMovie(data)
       setError(null)
       setLoading(false)
+      console.log('Movie loaded successfully')
     } catch (error: any) {
       console.error('Error loading movie:', error)
-      if (error.name === 'AbortError') {
+      if (error.message && error.message.includes('timeout')) {
         setError('Request timed out. The TMDb API may be slow or rate-limited. Please try again in a moment.')
       } else {
-        setError('Failed to fetch movies. Please check your connection and try again.')
+        setError(`Failed to fetch movies: ${error.message || 'Please check your connection and try again.'}`)
       }
       setMovie(null)
       setLoading(false)
