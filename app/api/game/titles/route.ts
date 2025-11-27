@@ -24,7 +24,7 @@ export async function GET() {
     const titles = new Set<string>()
     
     // Fetch titles alphabetically (A-Z and digits)
-    const letters = [...'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789']
+    const letters = Array.from('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789')
     for (const letter of letters) {
       try {
         const letterTitles = await getTMDbMoviesByLetter(letter, 150)
