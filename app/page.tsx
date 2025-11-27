@@ -231,6 +231,15 @@ export default function Home() {
           title.toLowerCase().includes(valueLower)
         )
 
+        // If the correct movie title matches the query, include it in suggestions
+        if (movie?.title && movie.title.toLowerCase().includes(valueLower)) {
+          const correctTitle = movie.title
+          // Only add if it's not already in the list
+          if (!suggestions.some(t => t.toLowerCase() === correctTitle.toLowerCase())) {
+            suggestions.push(correctTitle)
+          }
+        }
+
         suggestions = suggestions.sort((a, b) => {
           const aLower = a.toLowerCase()
           const bLower = b.toLowerCase()
@@ -241,17 +250,11 @@ export default function Home() {
           const aIndex = aLower.indexOf(valueLower)
           const bIndex = bLower.indexOf(valueLower)
           if (aIndex !== bIndex) return aIndex - bIndex
-          return a.length - b.length
+          // Then sort alphabetically
+          return aLower.localeCompare(bLower)
         })
 
-        // Don't add the correct movie title to suggestions - let users guess naturally
-        // Filter out the correct answer if it appears in the list
-        const uniqueSuggestions = Array.from(new Set(suggestions)).filter(title => {
-          if (movie?.title) {
-            return title.toLowerCase() !== movie.title.toLowerCase()
-          }
-          return true
-        })
+        const uniqueSuggestions = Array.from(new Set(suggestions))
         setSuggestions(uniqueSuggestions.slice(0, 50))
         setShowSuggestions(uniqueSuggestions.length > 0)
         setLoadingAutocomplete(false)
