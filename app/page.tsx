@@ -63,7 +63,7 @@ export default function Home() {
     const loadTopGrossingTitles = async () => {
       setLoadingTitles(true)
       try {
-        // Get top 25 highest-grossing movies per year (1989-2025) from TMDb (cached)
+        // Get top 10 highest-grossing movies per year (1989-2025) from TMDb (cached, loads in background)
         const response = await fetch('/api/game/top-grossing')
         const data = await response.json()
         if (data.titles && Array.isArray(data.titles)) {
