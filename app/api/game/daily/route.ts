@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server'
 import { getTMDbMovieDetailsByIMDbId } from '@/lib/tmdb'
 import { removeNamesFromPlot, replaceProperNounsWithRedacted } from '@/lib/plotUtils'
 
+// Increase timeout for this route (Vercel free tier is 10s, pro is 60s)
+export const maxDuration = 25
+
 export async function GET() {
   const startTime = Date.now()
   console.log('[Daily Movie API] Starting request...')
@@ -51,12 +54,23 @@ export async function GET() {
     let movieDetails = null
     let lastError: string | null = null
     
-    // Try up to 5 movies, but with timeout protection
+    // Try up to 3 movies (reduced for faster response), but with timeout protection
     console.log('[Daily Movie API] Trying to fetch movie details from TMDb...')
-    for (let i = 0; i < movies.length; i++) {
-      const movie = movies[i]
+    const moviesToTry = movies.slice(0, 3) // Only try first 3 for speed
+    
+    for (let i = 0; i < moviesToTry.length; i++) {
+      const movie = moviesToTry[i]
       const movieId = String(movie.movie_id)
-      console.log(`[Daily Movie API] Trying movie ${i + 1}/${movies.length}: ${movieId}`)
+      const elapsed = Date.now() - startTime
+      
+      // If we've been running for more than 20 seconds, give up
+      if (elapsed > 20000) {
+        console.warn(`[Daily Movie API] Timeout after ${elapsed}ms, stopping`)
+        lastError = 'Request took too long. TMDb API may be slow or rate-limited.'
+        break
+      }
+      
+      console.log(`[Daily Movie API] Trying movie ${i + 1}/${moviesToTry.length}: ${movieId} (${elapsed}ms elapsed)`)
       
       if (!movieId.startsWith('tt')) {
         lastError = `Movie ID ${movieId} is not a valid IMDb ID`

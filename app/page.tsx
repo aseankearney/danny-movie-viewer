@@ -171,10 +171,24 @@ export default function Home() {
 
   // Load daily movie when game starts
   useEffect(() => {
-    if (gameStarted && !movie) {
+    if (gameStarted && !movie && !loading) {
+      console.log('Game started, loading daily movie...')
       loadDailyMovie()
     }
-  }, [gameStarted, movie, loadDailyMovie])
+  }, [gameStarted, movie, loadDailyMovie, loading])
+
+  // Fallback timeout: if loading takes more than 25 seconds, show error
+  useEffect(() => {
+    if (loading && gameStarted) {
+      const timeoutId = setTimeout(() => {
+        console.error('Loading timeout - taking too long')
+        setError('The puzzle is taking too long to load. This might be due to TMDb API rate limits. Please try refreshing the page in a few moments.')
+        setLoading(false)
+      }, 25000)
+      
+      return () => clearTimeout(timeoutId)
+    }
+  }, [loading, gameStarted])
 
   const handleInputChange = async (value: string) => {
     setUserAnswer(value)
