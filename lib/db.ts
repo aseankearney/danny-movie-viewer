@@ -104,8 +104,8 @@ export async function getRandomMovieFromLikedOrHated(): Promise<MovieStatus | nu
   }
 }
 
-// Get all valid movies for daily puzzle selection
-export async function getValidMoviesForDaily(): Promise<Array<{ movie_id: string | number; status: string; updated_at: Date }>> {
+// Get all valid movies for daily puzzle selection (not currently used, but kept for potential future use)
+export async function getValidMoviesForDaily(): Promise<any[]> {
   try {
     const allMovies = await sql`
       SELECT movie_id, status, updated_at
@@ -115,7 +115,7 @@ export async function getValidMoviesForDaily(): Promise<Array<{ movie_id: string
     `
     
     // Filter to only include movies with valid IMDb IDs (starting with 'tt')
-    const validMovies = allMovies.filter(movie => {
+    const validMovies = allMovies.filter((movie: any) => {
       const movieId = String(movie.movie_id)
       return movieId.startsWith('tt') && movieId.length > 2
     })
