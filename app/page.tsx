@@ -624,12 +624,24 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Year - with top padding to avoid overlap on mobile */}
+            {/* Danny's Age - with top padding to avoid overlap on mobile */}
             <div className="text-center mb-6 pt-12 sm:pt-6">
-              <div className="text-6xl sm:text-7xl font-bold text-blue-600 dark:text-blue-400 mb-2">
-                {movie.year || '?'}
-              </div>
-              <div className="text-sm text-gray-500 dark:text-gray-400">Year Released</div>
+              {movie.year ? (() => {
+                const movieYear = parseInt(movie.year)
+                const dannyAge = movieYear - 1983
+                return (
+                  <>
+                    <div className="text-2xl sm:text-3xl font-semibold text-gray-900 dark:text-white mb-2">
+                      Danny was {dannyAge} years old when this movie was released.
+                    </div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">({movie.year})</div>
+                  </>
+                )
+              })() : (
+                <div className="text-2xl sm:text-3xl font-semibold text-gray-900 dark:text-white mb-2">
+                  Year unknown
+                </div>
+              )}
             </div>
 
             {/* Like/Dislike */}
