@@ -122,7 +122,15 @@ export default function Home() {
     setLeaderboardSubmitted(false)
     
     try {
-      const response = await fetch('/api/game/daily')
+      // Add timeout to fetch (15 seconds)
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 15000)
+      
+      const response = await fetch('/api/game/daily', {
+        signal: controller.signal
+      })
+      clearTimeout(timeoutId)
+      
       const data = await response.json()
       
       if (!response.ok) {
@@ -144,7 +152,11 @@ export default function Home() {
       setLoading(false)
     } catch (error: any) {
       console.error('Error loading movie:', error)
-      setError('Failed to fetch movies. Please check your connection and try again.')
+      if (error.name === 'AbortError') {
+        setError('Request timed out. The TMDb API may be slow or rate-limited. Please try again in a moment.')
+      } else {
+        setError('Failed to fetch movies. Please check your connection and try again.')
+      }
       setMovie(null)
       setLoading(false)
     }

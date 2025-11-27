@@ -20,7 +20,7 @@ export async function GET() {
       FROM movie_statuses
       WHERE status IN ('Seen-Liked', 'Seen-Hated')
       ORDER BY updated_at DESC
-      LIMIT 15
+      LIMIT 5
     `
     
     if (movies.length === 0) {
@@ -34,29 +34,43 @@ export async function GET() {
     
     let movieStatus = null
     let movieDetails = null
+    let lastError: string | null = null
     
+    // Try up to 5 movies, but with timeout protection
     for (const movie of movies) {
       const movieId = String(movie.movie_id)
-      if (!movieId.startsWith('tt')) continue
+      if (!movieId.startsWith('tt')) {
+        lastError = `Movie ID ${movieId} is not a valid IMDb ID`
+        continue
+      }
       
-      const tmdbDetails = await getTMDbMovieDetailsByIMDbId(movieId)
-      if (tmdbDetails) {
-        movieStatus = {
-          movieId: movie.movie_id,
-          status: movie.status as 'Seen-Liked' | 'Seen-Hated',
-          updatedAt: movie.updated_at instanceof Date 
-            ? movie.updated_at.toISOString() 
-            : new Date(movie.updated_at).toISOString(),
+      try {
+        const tmdbDetails = await getTMDbMovieDetailsByIMDbId(movieId)
+        if (tmdbDetails && tmdbDetails.title) {
+          movieStatus = {
+            movieId: movie.movie_id,
+            status: movie.status as 'Seen-Liked' | 'Seen-Hated',
+            updatedAt: movie.updated_at instanceof Date 
+              ? movie.updated_at.toISOString() 
+              : new Date(movie.updated_at).toISOString(),
+          }
+          movieDetails = tmdbDetails
+          break
+        } else {
+          lastError = `Failed to fetch details for ${movieId} from TMDb`
         }
-        movieDetails = tmdbDetails
-        break
+      } catch (error: any) {
+        lastError = error.message || `Error fetching ${movieId} from TMDb`
+        console.error(`Error fetching movie ${movieId}:`, error)
+        // Continue to next movie
+        continue
       }
     }
     
     if (!movieStatus || !movieDetails) {
       return NextResponse.json(
         { 
-          error: 'Failed to fetch movie details from TMDb. Please ensure the tracker has entries with valid IMDb IDs.' 
+          error: `Failed to fetch movie details from TMDb. ${lastError || 'Please ensure the tracker has entries with valid IMDb IDs.'}` 
         },
         { status: 404 }
       )

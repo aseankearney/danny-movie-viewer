@@ -79,7 +79,7 @@ export interface TMDbMovieDetails {
   actorsText: string | null
 }
 
-async function fetchTMDb<T>(endpoint: string, params: Record<string, string | number>) {
+async function fetchTMDb<T>(endpoint: string, params: Record<string, string | number>, timeout: number = 10000) {
   if (!TMDB_API_KEY) {
     throw new Error('TMDB_API_KEY is not set')
   }
@@ -91,12 +91,29 @@ async function fetchTMDb<T>(endpoint: string, params: Record<string, string | nu
     url.searchParams.set(key, String(value))
   }
 
-  const response = await fetch(url.toString(), { cache: 'no-store' })
-  if (!response.ok) {
-    throw new Error(`TMDb API error: ${response.statusText}`)
+  // Add timeout to fetch
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), timeout)
+
+  try {
+    const response = await fetch(url.toString(), { 
+      cache: 'no-store',
+      signal: controller.signal
+    })
+    clearTimeout(timeoutId)
+    
+    if (!response.ok) {
+      throw new Error(`TMDb API error: ${response.statusText}`)
+    }
+    const data: T = await response.json()
+    return data
+  } catch (error: any) {
+    clearTimeout(timeoutId)
+    if (error.name === 'AbortError') {
+      throw new Error(`TMDb API timeout after ${timeout}ms`)
+    }
+    throw error
   }
-  const data: T = await response.json()
-  return data
 }
 
 export async function searchTMDbMovies(query: string, page: number = 1): Promise<string[]> {
