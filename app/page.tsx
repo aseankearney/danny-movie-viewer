@@ -363,24 +363,57 @@ export default function Home() {
     return normalized
   }
 
-  const getHintText = (level: number): string | null => {
+  const getHintText = (level: number): string | React.ReactElement | null => {
     if (!movie) return null
 
     switch (level) {
       case 1:
-        return movie.genre ? `This movie's genre is: ${movie.genre}` : null
-      case 2:
-        return movie.rated ? `This movie is rated: ${movie.rated}` : null
-      case 3:
-        if (movie.fourthAndFifthActors) {
-          return `Danny probably doesn't know these actors that were in this movie: ${movie.fourthAndFifthActors}`
+        if (!movie.genre) return null
+        // Check if it's a genre Danny likes
+        const genreLower = movie.genre.toLowerCase()
+        const isRomCom = genreLower.includes('romance') || genreLower.includes('comedy')
+        const isAction = genreLower.includes('action')
+        const isArtsy = genreLower.includes('drama') && !isRomCom && !isAction
+        
+        if (isRomCom || isAction) {
+          return `For sure, I love ${movie.genre} movies, fool!`
+        } else if (isArtsy) {
+          return `This is one of those long artsy ${movie.genre} movies that Aris would love, but I'm not really into it, for sure.`
+        } else {
+          return `This movie's a ${movie.genre} flick, for sure.`
         }
-        // Fallback: try to get any actors from the movie data
-        return null
+      case 2:
+        if (!movie.rated) return null
+        return `This one's rated ${movie.rated}, fool.`
+      case 3:
+        if (!movie.fourthAndFifthActors) return null
+        const actors = movie.fourthAndFifthActors.split(' and ').map(a => a.trim())
+        return (
+          <>
+            I probably don't know these actors that were in this movie:{' '}
+            {actors.map((actor, idx) => (
+              <span key={idx}>
+                <span className="font-bold text-blue-600 dark:text-blue-400">{actor}</span>
+                {idx < actors.length - 1 ? ' and ' : ''}
+              </span>
+            ))}
+            , for sure.
+          </>
+        )
       case 4:
-        return movie.director ? `Danny probably doesn't know that ${movie.director} directed this movie.` : null
+        if (!movie.director) return null
+        return (
+          <>
+            I probably don't know that <span className="font-bold text-blue-600 dark:text-blue-400">{movie.director}</span> directed this movie, fool.
+          </>
+        )
       case 5:
-        return movie.firstActor ? `Danny definitely knows that ${movie.firstActor} starred in this movie.` : null
+        if (!movie.firstActor) return null
+        return (
+          <>
+            I definitely know that <span className="font-bold text-blue-600 dark:text-blue-400">{movie.firstActor}</span> starred in this movie, for sure!
+          </>
+        )
       case 6:
         // Return special marker for plot hint (needs special rendering)
         return movie.plotWithRedacted ? '__PLOT_HINT__' : null
@@ -882,8 +915,8 @@ export default function Home() {
                         key={hintLevel}
                         className="text-center"
                       >
-                        <div className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">
-                          Danny would describe this movie like this:{' '}
+                        <div className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
+                          I would describe this movie like this:{' '}
                           {movie.plotWithRedacted.map((segment, idx) => (
                             <span
                               key={idx}
@@ -897,77 +930,13 @@ export default function Home() {
                     )
                   }
                   
-                  // Check if hint contains actor names that need to be styled
-                  const actorHints = [
-                    'Danny probably doesn\'t know these actors that were in this movie:',
-                    'Danny probably doesn\'t know that',
-                    'Danny definitely knows that'
-                  ]
-                  const isActorHint = actorHints.some(prefix => hintText.includes(prefix))
-                  
-                  if (isActorHint) {
-                    // Extract actor names and make them bold and blue
-                    let formattedText: string | React.ReactElement = hintText
-                    
-                    // For fourthAndFifthActors hint
-                    if (hintText.includes('Danny probably doesn\'t know these actors')) {
-                      const match = hintText.match(/Danny probably doesn't know these actors that were in this movie: (.+)/)
-                      if (match && match[1]) {
-                        const actors = match[1].split(' and ').map(a => a.trim())
-                        formattedText = (
-                          <>
-                            Danny probably doesn't know these actors that were in this movie:{' '}
-                            {actors.map((actor, idx) => (
-                              <span key={idx}>
-                                <span className="font-bold text-blue-600 dark:text-blue-400">{actor}</span>
-                                {idx < actors.length - 1 ? ' and ' : ''}
-                              </span>
-                            ))}
-                          </>
-                        )
-                      }
-                    }
-                    // For director hint
-                    else if (hintText.includes('Danny probably doesn\'t know that') && movie.director) {
-                      const parts = hintText.split(movie.director)
-                      formattedText = (
-                        <>
-                          {parts[0]}
-                          <span className="font-bold text-blue-600 dark:text-blue-400">{movie.director}</span>
-                          {parts[1]}
-                        </>
-                      )
-                    }
-                    // For first actor hint
-                    else if (hintText.includes('Danny definitely knows that') && movie.firstActor) {
-                      const parts = hintText.split(movie.firstActor)
-                      formattedText = (
-                        <>
-                          {parts[0]}
-                          <span className="font-bold text-blue-600 dark:text-blue-400">{movie.firstActor}</span>
-                          {parts[1]}
-                        </>
-                      )
-                    }
-                    
-                    return (
-                      <div
-                        key={hintLevel}
-                        className="text-center"
-                      >
-                        <div className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">
-                          {formattedText}
-                        </div>
-                      </div>
-                    )
-                  }
-                  
+                  // Hints are already formatted with Danny's voice and styling
                   return (
                     <div
                       key={hintLevel}
                       className="text-center"
                     >
-                      <div className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">
+                      <div className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
                         {hintText}
                       </div>
                     </div>

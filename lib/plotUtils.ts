@@ -52,6 +52,9 @@ export function replaceProperNounsWithRedacted(plot: string): Array<{ text: stri
   
   // Character names and proper nouns that should always be redacted (case-insensitive)
   const alwaysRedact = new Set(['patch'])
+  
+  // Names from Danny's personal life that should NEVER be redacted (case-insensitive)
+  const neverRedact = new Set(['taylor', 'danny', 'aris', 'pat', 'scott'])
 
   // Split by sentences first
   const sentences = plot.split(/([.!?]+[\s]*)/)
@@ -102,9 +105,26 @@ export function replaceProperNounsWithRedacted(plot: string): Array<{ text: stri
       // Check if it's a proper noun: capitalized word that's not at start of sentence (unless it's a common word)
       // Also check words in parentheses or quotes
       // Also check if it's in the always-redact list (like character names)
+      // BUT exclude names from Danny's personal life
       const isCapitalized = /^[A-Z]/.test(wordToCheck)
       const isInParens = parenMatch !== null
+      const shouldNeverRedact = neverRedact.has(lowerWord)
       const shouldAlwaysRedact = alwaysRedact.has(lowerWord)
+      
+      // Don't redact if it's a name from Danny's personal life
+      if (shouldNeverRedact) {
+        // Not a proper noun for redaction purposes
+        if (isCurrentRedacted) {
+          if (currentSegment) {
+            result.push({ text: currentSegment, isRedacted: true })
+            currentSegment = ''
+          }
+          isCurrentRedacted = false
+        }
+        currentSegment += word
+        continue
+      }
+      
       const isProperNoun = shouldAlwaysRedact || (isCapitalized && (!isFirstWord || (wordToCheck.length > 1 && !commonWords.has(lowerWord))) || (isInParens && isCapitalized) || (isInQuotes && isCapitalized))
 
       if (isProperNoun) {
