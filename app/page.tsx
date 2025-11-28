@@ -48,6 +48,7 @@ export default function Home() {
   const [submittingLeaderboard, setSubmittingLeaderboard] = useState(false)
   const [leaderboardSubmitted, setLeaderboardSubmitted] = useState(false)
   const [showLeaderboard, setShowLeaderboard] = useState(false)
+  const [showLandingLeaderboard, setShowLandingLeaderboard] = useState(false)
   const [leaderboard, setLeaderboard] = useState<Array<{ playerName: string; hintsUsed: number; submittedAt: string }>>([])
   const [loadingLeaderboard, setLoadingLeaderboard] = useState(false)
   const [allMovieTitles, setAllMovieTitles] = useState<string[]>([])
@@ -479,12 +480,12 @@ export default function Home() {
     }
   }
 
-  const loadLeaderboard = async () => {
-    if (!movie) return
-
+  const loadLeaderboard = async (puzzleDate?: string) => {
+    const dateToUse = puzzleDate || movie?.puzzleDate || new Date().toISOString().split('T')[0]
+    
     setLoadingLeaderboard(true)
     try {
-      const response = await fetch(`/api/leaderboard/get?date=${movie.puzzleDate}`)
+      const response = await fetch(`/api/leaderboard/get?date=${dateToUse}`)
       const data = await response.json()
 
       if (response.ok && data.leaderboard) {
@@ -499,6 +500,11 @@ export default function Home() {
     } finally {
       setLoadingLeaderboard(false)
     }
+  }
+
+  const handleShowLandingLeaderboard = () => {
+    setShowLandingLeaderboard(true)
+    loadLeaderboard() // Load today's leaderboard
   }
 
   const handleShowLeaderboard = () => {
@@ -696,6 +702,55 @@ export default function Home() {
 
   // Landing page
   if (!gameStarted) {
+    // Show leaderboard from landing page
+    if (showLandingLeaderboard) {
+      return (
+        <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 p-4">
+          <div className="max-w-2xl w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 sm:p-8">
+            <h3 className="text-3xl sm:text-4xl font-bold text-center mb-6 text-gray-900 dark:text-white">
+              Today's Leaderboard
+            </h3>
+            {loadingLeaderboard ? (
+              <div className="text-center py-8 text-gray-600 dark:text-gray-400">
+                Loading leaderboard...
+              </div>
+            ) : leaderboard.length === 0 ? (
+              <div className="text-center py-8 text-gray-600 dark:text-gray-400">
+                No entries yet. Be the first!
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-[500px] overflow-y-auto mb-6">
+                {leaderboard.map((entry, index) => (
+                  <div
+                    key={index}
+                    className="flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-700 rounded-lg"
+                  >
+                    <div className="flex items-center gap-4">
+                      <span className="text-xl font-bold text-gray-500 dark:text-gray-400 w-10 text-center">
+                        {index + 1}
+                      </span>
+                      <span className="text-lg font-semibold text-gray-900 dark:text-white">
+                        {entry.playerName}
+                      </span>
+                    </div>
+                    <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                      {entry.hintsUsed} {entry.hintsUsed === 1 ? 'Guess' : 'Guesses'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <button
+              onClick={() => setShowLandingLeaderboard(false)}
+              className="w-full px-6 py-4 bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white rounded-lg font-semibold text-lg transition-colors touch-manipulation"
+            >
+              Back to Landing Page
+            </button>
+          </div>
+        </main>
+      )
+    }
+
     return (
       <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 p-4">
         <div className="max-w-2xl w-full bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-lg shadow-lg p-8 sm:p-12 text-center">
@@ -732,19 +787,27 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Start Game Button */}
-          <button
-            onClick={() => {
-              setGameStarted(true)
-              // Load the movie when Start Game is clicked
-              setTimeout(() => {
-                loadDailyMovie()
-              }, 100)
-            }}
-            className="px-8 py-4 bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white rounded-lg font-semibold text-xl transition-colors touch-manipulation shadow-lg"
-          >
-            Start Game
-          </button>
+          {/* Buttons */}
+          <div className="space-y-4">
+            <button
+              onClick={() => {
+                setGameStarted(true)
+                // Load the movie when Start Game is clicked
+                setTimeout(() => {
+                  loadDailyMovie()
+                }, 100)
+              }}
+              className="w-full px-8 py-4 bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white rounded-lg font-semibold text-xl transition-colors touch-manipulation shadow-lg"
+            >
+              Start Game
+            </button>
+            <button
+              onClick={handleShowLandingLeaderboard}
+              className="w-full px-8 py-4 bg-purple-500 hover:bg-purple-600 active:bg-purple-700 text-white rounded-lg font-semibold text-xl transition-colors touch-manipulation shadow-lg"
+            >
+              View Leaderboard
+            </button>
+          </div>
         </div>
       </main>
     )
