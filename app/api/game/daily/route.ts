@@ -29,60 +29,84 @@ export async function GET() {
       )
     }
 
-    // For demo: fetch the most recent movies marked as Seen-Liked or Seen-Hated and pick the first one with TMDb data
+    // Get today's date for daily puzzle selection
+    const today = new Date().toISOString().split('T')[0]
+    
     console.log('[Daily Movie API] Connecting to database...')
     const { neon } = await import('@neondatabase/serverless')
     const sql = neon(process.env.DATABASE_URL!)
     
-    console.log('[Daily Movie API] Querying database...')
+    console.log(`[Daily Movie API] Selecting daily movie for date: ${today}`)
     
-    // Simplified query - just get the movies we need, no extra queries
+    // Get all valid movies for daily puzzle selection
     // Add retry logic for database connection
-    let movies
+    let allMovies
     try {
-      movies = await sql`
+      allMovies = await sql`
         SELECT movie_id, status, updated_at
         FROM movie_statuses
         WHERE status IN ('Seen-Liked', 'Seen-Hated')
-        ORDER BY updated_at DESC
-        LIMIT 3
+        ORDER BY movie_id
       `
-      console.log(`[Daily Movie API] Found ${movies.length} movies with Seen-Liked or Seen-Hated status`)
+      console.log(`[Daily Movie API] Found ${allMovies.length} movies with Seen-Liked or Seen-Hated status`)
     } catch (dbError: any) {
       console.error('[Daily Movie API] Database query failed, retrying once...', dbError)
       // Retry once after a short delay
       await new Promise(resolve => setTimeout(resolve, 500))
       try {
-        movies = await sql`
+        allMovies = await sql`
           SELECT movie_id, status, updated_at
           FROM movie_statuses
           WHERE status IN ('Seen-Liked', 'Seen-Hated')
-          ORDER BY updated_at DESC
-          LIMIT 3
+          ORDER BY movie_id
         `
-        console.log(`[Daily Movie API] Retry successful - Found ${movies.length} movies`)
+        console.log(`[Daily Movie API] Retry successful - Found ${allMovies.length} movies`)
       } catch (retryError: any) {
         console.error('[Daily Movie API] Database retry also failed:', retryError)
         throw new Error(`Database connection failed: ${retryError.message}`)
       }
     }
     
-    if (movies.length === 0) {
+    // Filter to only include movies with valid IMDb IDs (starting with 'tt')
+    const validMovies = allMovies.filter(movie => {
+      const movieId = String(movie.movie_id)
+      return movieId.startsWith('tt') && movieId.length > 2
+    })
+    
+    if (validMovies.length === 0) {
       return NextResponse.json(
         { 
-          error: 'No movies available. Danny needs to review some movies in the tracker app first! The game needs movies marked as "Seen-Liked" or "Seen-Hated".' 
+          error: 'No movies available. Danny needs to review some movies in the tracker app first! The game needs movies marked as "Seen-Liked" or "Seen-Hated" with valid IMDb IDs.' 
         },
         { status: 404 }
       )
     }
     
+    // Use date string to generate consistent index (same movie for same date)
+    // Simple hash of date string
+    let hash = 0
+    for (let i = 0; i < today.length; i++) {
+      const char = today.charCodeAt(i)
+      hash = ((hash << 5) - hash) + char
+      hash = hash & hash // Convert to 32bit integer
+    }
+    
+    // Use hash to select movie (deterministic based on date)
+    const index = Math.abs(hash) % validMovies.length
+    const selectedMovie = validMovies[index]
+    
+    console.log(`[Daily Movie API] Selected movie at index ${index} (hash: ${hash}) out of ${validMovies.length} valid movies: ${selectedMovie.movie_id}`)
+    
     let movieStatus = null
     let movieDetails = null
     let lastError: string | null = null
     
-    // Try up to 3 movies (reduced for faster response), but with timeout protection
+    // Try the selected movie and a few backups if it fails
     console.log('[Daily Movie API] Trying to fetch movie details from TMDb...')
-    const moviesToTry = movies // Already limited to 3
+    const moviesToTry = [
+      selectedMovie,
+      ...validMovies.filter((m, i) => i !== index).slice(0, 2) // Get 2 backup movies
+    ]
     
     for (let i = 0; i < moviesToTry.length; i++) {
       const movie = moviesToTry[i]
@@ -137,8 +161,6 @@ export async function GET() {
         { status: 404 }
       )
     }
-    
-    const today = new Date().toISOString().split('T')[0]
 
     // Transform plot to Danny's voice first
     const dannyPlot = movieDetails.plot
