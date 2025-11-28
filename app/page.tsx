@@ -770,7 +770,7 @@ export default function Home() {
             <div className="text-center mb-6 pt-20 sm:pt-16">
               {movie.year ? (() => {
                 const movieYear = parseInt(movie.year)
-                const dannyAge = movieYear - 1983
+                const dannyAge = movieYear - 1985
                 return (
                   <div className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white mb-2">
                     Danny was <span className="font-bold text-green-600 dark:text-green-400">{dannyAge} Years Old</span> when this movie was released.
