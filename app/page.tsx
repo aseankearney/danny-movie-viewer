@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import Image from 'next/image'
+import { getDannyPersonalTouch, applyDannyTouch } from '@/lib/dannyHints'
 
 interface PlotSegment {
   text: string
@@ -375,22 +376,35 @@ export default function Home() {
         const isAction = genreLower.includes('action')
         const isArtsy = genreLower.includes('drama') && !isRomCom && !isAction
         
+        let genreHint = ''
         if (isRomCom || isAction) {
-          return `For sure, I love ${movie.genre} movies, fool!`
+          genreHint = `For sure, I love ${movie.genre} movies, fool!`
         } else if (isArtsy) {
-          return `This is one of those long artsy ${movie.genre} movies that Aris would love, but I'm not really into it, for sure.`
+          genreHint = `This is one of those long artsy ${movie.genre} movies that Aris would love - and I think Aris is sexy, so that's saying something - but I'm not really into it, for sure.`
         } else {
-          return `This movie's a ${movie.genre} flick, for sure.`
+          genreHint = `This movie's a ${movie.genre} flick, for sure.`
         }
+        
+        // Add Danny's personal touch
+        const genreTouch = getDannyPersonalTouch({ genre: movie.genre })
+        return applyDannyTouch(genreHint, genreTouch)
+        
       case 2:
         if (!movie.rated) return null
-        return `This one's rated ${movie.rated}, fool.`
+        let ratedHint = `This one's rated ${movie.rated}, fool.`
+        const ratedTouch = getDannyPersonalTouch()
+        return applyDannyTouch(ratedHint, ratedTouch)
+        
       case 3:
         if (!movie.fourthAndFifthActors) return null
         const actors = movie.fourthAndFifthActors.split(' and ').map(a => a.trim())
+        const actorsTouch = getDannyPersonalTouch()
+        let actorsBase = `I probably don't know these actors that were in this movie:`
+        actorsBase = applyDannyTouch(actorsBase, actorsTouch)
+        
         return (
           <>
-            I probably don't know these actors that were in this movie:{' '}
+            {actorsBase}{' '}
             {actors.map((actor, idx) => (
               <span key={idx}>
                 <span className="font-bold text-blue-600 dark:text-blue-400">{actor}</span>
@@ -402,16 +416,32 @@ export default function Home() {
         )
       case 4:
         if (!movie.director) return null
+        let directorHint = `I probably don't know that ${movie.director} directed this movie, fool.`
+        const directorTouch = getDannyPersonalTouch({ director: movie.director })
+        const directorText = applyDannyTouch(directorHint, directorTouch)
+        
+        // Split to preserve actor name styling
+        const directorParts = directorText.split(movie.director)
         return (
           <>
-            I probably don't know that <span className="font-bold text-blue-600 dark:text-blue-400">{movie.director}</span> directed this movie, fool.
+            {directorParts[0]}
+            <span className="font-bold text-blue-600 dark:text-blue-400">{movie.director}</span>
+            {directorParts[1]}
           </>
         )
       case 5:
         if (!movie.firstActor) return null
+        let actorHint = `I definitely know that ${movie.firstActor} starred in this movie, for sure!`
+        const actorTouch = getDannyPersonalTouch({ actor: movie.firstActor })
+        const actorText = applyDannyTouch(actorHint, actorTouch)
+        
+        // Split to preserve actor name styling
+        const actorParts = actorText.split(movie.firstActor)
         return (
           <>
-            I definitely know that <span className="font-bold text-blue-600 dark:text-blue-400">{movie.firstActor}</span> starred in this movie, for sure!
+            {actorParts[0]}
+            <span className="font-bold text-blue-600 dark:text-blue-400">{movie.firstActor}</span>
+            {actorParts[1]}
           </>
         )
       case 6:
