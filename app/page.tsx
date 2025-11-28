@@ -877,17 +877,13 @@ export default function Home() {
                   
                   // Special handling for plot hint (hint 7)
                   if (hintText === '__PLOT_HINT__' && movie.plotWithRedacted) {
-                    const plotPrefix = movie.status === 'Seen-Liked' 
-                      ? "Hey fools, just saw a great movie! "
-                      : "Hey fools, this movie was stupid. It was about "
-                    
                     return (
                       <div
                         key={hintLevel}
                         className="text-center"
                       >
                         <div className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">
-                          Danny would describe this movie like this: {plotPrefix}
+                          Danny would describe this movie like this:{' '}
                           {movie.plotWithRedacted.map((segment, idx) => (
                             <span
                               key={idx}

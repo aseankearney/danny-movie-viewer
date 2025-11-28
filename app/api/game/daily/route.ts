@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getTMDbMovieDetailsByIMDbId } from '@/lib/tmdb'
 import { removeNamesFromPlot, replaceProperNounsWithRedacted } from '@/lib/plotUtils'
+import { transformPlotToDannyVoice } from '@/lib/dannyPlotTransform'
 
 // Mark this route as dynamic since it uses database and external APIs
 export const dynamic = 'force-dynamic'
@@ -139,9 +140,18 @@ export async function GET() {
     
     const today = new Date().toISOString().split('T')[0]
 
-    const plotWithoutNames = movieDetails.plot
-      ? removeNamesFromPlot(
+    // Transform plot to Danny's voice first
+    const dannyPlot = movieDetails.plot
+      ? await transformPlotToDannyVoice(
+          String(movieStatus.movieId),
           movieDetails.plot,
+          movieStatus.status === 'Seen-Liked'
+        )
+      : null
+
+    const plotWithoutNames = dannyPlot
+      ? removeNamesFromPlot(
+          dannyPlot,
           movieDetails.actorsText,
           movieDetails.director
         )
